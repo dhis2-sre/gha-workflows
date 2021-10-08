@@ -118,7 +118,6 @@ jobs:
       - name: Build production image
         uses: docker/build-push-action@v2
         with:
-          context: .
           builder: ${{ steps.buildx.outputs.name }}
           # Set the desired build target here
           push: false
