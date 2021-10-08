@@ -86,8 +86,6 @@ jobs:
 
           echo "VERSION=$VERSION"
 
-          make prod-image tag=${{ env.VERSION }}
-
       - name: Prepare
         id: prep
         run: |
@@ -119,7 +117,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          # Set the desired build target here
           push: false
           tags: ${{ steps.prep.outputs.tagged_image }}
           cache-from: type=local,src=/tmp/.buildx-cache
