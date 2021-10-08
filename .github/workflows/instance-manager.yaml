@@ -1,0 +1,19 @@
+name: Tests, build and deploy
+
+on:
+  workflow_call:
+    inputs:
+      hello:
+        description: 'Hello...'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Say hello
+        run: echo "${{ inputs.hello }} world!"
