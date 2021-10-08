@@ -116,6 +116,8 @@ jobs:
       - name: Build production image
         uses: docker/build-push-action@v2
         with:
+          context: .
+          load: true
           push: false
           tags: dhis2/instance-manager-api:${{ env.VERSION }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -173,7 +175,9 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push image
-        run: IMAGE_TAG=${{ env.VERSION }} docker compose push prod
+        run: |
+          docker images
+          IMAGE_TAG=${{ env.VERSION }} docker compose push prod
 
       - name: Setup yq
         run: |
