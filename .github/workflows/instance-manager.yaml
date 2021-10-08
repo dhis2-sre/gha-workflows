@@ -120,7 +120,6 @@ jobs:
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
-          file: .dockerdev/Dockerfile.multi
           # Set the desired build target here
           target: deploy
           push: false
