@@ -3,9 +3,38 @@ name: Tests, build and deploy
 on:
   workflow_call:
     inputs:
-      hello:
-        description: 'Hello...'
+      DOCKER_IMAGE_NAME:
+        description: 'Docker image name, eg. dhis2/instance-manager-api'
         required: true
+        type: string
+      PROCESS_NAME:
+        description: 'Container process name, eg. dhis2-instance-manager-api. Used to assert that the process is running under pid 1'
+        required: true
+        type: string
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+        description: 'Docker Hub Username'
+        type: string
+      DOCKER_PASSWORD:
+        required: true
+        description: 'Docker Hub Password'
+        type: string
+      SOPS_KMS_ARN:
+        required: true
+        description: 'KMS Key used to decrypt SOPS encrypted secrets'
+        type: string
+      AWS_ACCESS_KEY_ID:
+        required: true
+        description: 'AWS Access Key Id'
+        type: string
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+        description: 'AWS Secret Access Key'
+        type: string
+      KUBECONFIG:
+        required: true
+        description: 'Kubernetes Configuration'
         type: string
 
 jobs:
@@ -15,5 +44,190 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Say hello
-        run: echo "${{ inputs.hello }} world!"
+      - name: Install prerequisites
+        run: |
+          mkdir -p ~/.docker/cli-plugins/
+          curl -SL https://github.com/docker/compose-cli/releases/download/v2.0.0-beta.6/docker-compose-linux-amd64 -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+
+      - name: Create dotenv from example
+        run: |
+          cp .env.example .env
+          sed -i -e "s#SOPS_KMS_ARN=<kms-key-arn>#SOPS_KMS_ARN=$SOPS_KMS_ARN#g" .env
+          sed -i -e "s#AWS_ACCESS_KEY_ID=<aws-access-key-id>#AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID#g" .env
+          sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
+          sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
+          echo "AWS_REGION=$AWS_REGION" >> .env
+        env:
+          SOPS_KMS_ARN: ${{ secrets.KMS_KEY_ARN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-central-1
+
+      - name: Load dotenv file
+        uses: c-py/action-dotenv-to-setenv@v2
+        with:
+          env-file: .env
+
+      - name: Create RSA keypair
+        run: |
+          make keys
+          # TODO: Why can't prod find the key??
+          # Bad idea! But what's the alternative? The key isn't used for long...
+          chmod ugo+r rsa_private.pem
+
+      - name: Find version
+        run: |
+          # Strip git ref prefix from version
+          STRIPPED_REF=${GITHUB_REF##refs/*/}
+
+          # Strip "v" prefix from tag name
+          VERSION=${STRIPPED_REF#v}
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+
+          # Export
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "VERSION=$VERSION"
+
+      - name: Build image
+        run: |
+          make prod-image tag=${{ env.VERSION }}
+          IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
+          echo "IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
+      #          # TODO: Write note... Ensure that sha...
+      #          echo "IMAGE_SHA: $IMAGE_SHA"
+      #          # TODO: Get a ts for creation and assert that too... Maybe... Is it necessary
+      #
+      - name: Smoke test image
+        run: |
+          make smoke-test tag=${{ env.VERSION }}
+
+      #          # TODO: Write note... Ensure that sha...
+      #          IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
+      #          echo "IMAGE_SHA: $IMAGE_SHA"
+      #          echo "env.IMAGE_SHA: ${{ env.IMAGE_SHA }}"
+      #          [ "$IMAGE_SHA" == "${{ env.IMAGE_SHA }}" ]
+
+      - name: Confirm /health returns 200
+        run: |
+          sleep 4
+          curl --fail localhost:8080/health
+
+      - name: Confirm process isn't running as root
+        run: |
+          USER=$(docker compose exec -T prod whoami)
+          [ "$USER" != "root" ]
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
+      - name: Confirm process is running as pid 1
+        run: |
+          PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
+          [ "$PID" == "1" ]
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
+      - name: End smoke test
+        run: make clean
+
+      - name: Run unit and integration tests
+        run: make test
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
+      - name: Log into registry
+        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push image
+        run: make push-prod tag=${{ env.VERSION }}
+
+      - name: Setup yq
+        run: |
+          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/bin/yq
+          chmod +x /usr/bin/yq
+        env:
+          VERSION: v4.2.0
+          BINARY: yq_linux_amd64
+
+      - name: Update chart image tag
+        run: |
+          TARGET=helm/chart/values.yaml
+          yq -i e ".image.tag = \"${{ env.VERSION }}\"" $TARGET
+      # TODO: Assert the files was actually changed... The below doesn't work
+      #          [ "$(git diff --exit-code $TARGET)" != "0" ]
+
+      - name: Update chart version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TARGET=helm/chart/Chart.yaml
+          yq -i e ".version = \"${{ env.VERSION }}\"" $TARGET
+          [ "$(git diff --exit-code $TARGET)" != "0" ]
+
+      - name: Update chart app version
+        run: |
+          TARGET=helm/chart/Chart.yaml
+          yq -i e ".appVersion = \"${{ env.VERSION }}\"" $TARGET
+          cat $TARGET
+          [ "$(git diff --exit-code $TARGET)" != "0" ]
+
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version
+
+      - name: Configure kubectl
+        run: |
+          mkdir /home/runner/.kube
+          echo "${{ secrets.KUBECONFIG }}" > /home/runner/.kube/config
+
+      - name: Get nodes
+        run: kubectl get nodes
+
+      - name: Lint Helm
+        run: helm lint helm/chart
+
+      - name: Test chart
+        run: echo TODO
+
+      - name: Push chart
+        run: echo TODO
+
+      - name: Setup Sops
+        uses: mdgreenwald/mozilla-sops-action@v1.1.0
+
+      - name: Setup helmfile
+        uses: mamezou-tech/setup-helmfile@v0.7.0
+
+      - name: Setup helm secrets plugin
+        run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
+
+      - name: "Environment: dev"
+        if: github.ref == 'refs/heads/master'
+        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+
+      - name: "Environment: prod"
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+
+      - name: "Environment: feature"
+        if: startsWith(github.ref, 'refs/heads/feature/')
+        run: echo "ENVIRONMENT=feature" >> $GITHUB_ENV
+
+      - name: Deploy
+        run: |
+          if [[ "$ENVIRONMENT" == "feature" ]]; then
+            export FEATURE_TAG=-$VERSION
+            helmfile -e feature sync
+            kubectl delete pod --namespace $NAMESPACE --selector=app.kubernetes.io/instance=instance-manager-api-feat${FEATURE_TAG,,}
+          else
+            helmfile -e $ENVIRONMENT sync
+          fi
+
+          kubectl get pods --namespace $NAMESPACE
+        env:
+          FEATURE_TAG: -${{ env.VERSION }}
+          NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
