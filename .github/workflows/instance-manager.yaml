@@ -15,27 +15,21 @@ on:
       DOCKER_USERNAME:
         required: true
         description: 'Docker Hub Username'
-        type: string
       DOCKER_PASSWORD:
         required: true
         description: 'Docker Hub Password'
-        type: string
       SOPS_KMS_ARN:
         required: true
         description: 'KMS Key used to decrypt SOPS encrypted secrets'
-        type: string
       AWS_ACCESS_KEY_ID:
         required: true
         description: 'AWS Access Key Id'
-        type: string
       AWS_SECRET_ACCESS_KEY:
         required: true
         description: 'AWS Secret Access Key'
-        type: string
       KUBECONFIG:
         required: true
         description: 'Kubernetes Configuration'
-        type: string
 
 jobs:
   build:
