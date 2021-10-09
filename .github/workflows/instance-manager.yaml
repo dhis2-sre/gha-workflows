@@ -86,6 +86,11 @@ jobs:
 
           echo "VERSION=$VERSION"
 
+      - name: Run unit and integration tests
+        run: make test
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
       - name: Prepare
         id: prep
         run: |
@@ -163,10 +168,6 @@ jobs:
 #      - name: End smoke test
 #        run: make clean
 #
-      - name: Run unit and integration tests
-        run: make test
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
 
       - name: Log into registry
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
