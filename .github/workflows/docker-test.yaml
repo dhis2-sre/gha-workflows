@@ -90,7 +90,7 @@ jobs:
         run: sudo apt -y install nmap
 
       - name: nmap
-        run: nmap localhost
+        run: docker ps && nmap localhost
 
       - name: docker
         run: docker ps
@@ -100,19 +100,31 @@ jobs:
           sleep 4
           curl --fail localhost:8081/health
 
-      - name: nmap
-        run: nmap localhost
+      - name: docker ps & nmap
+        run: docker ps && nmap localhost
 
-      - name: Run unit and integration tests
-        run: |
-          docker compose up -d redis database rabbitmq kubernetes
-          sleep 2
-          docker compose up -d prod
-          docker compose up -d kubernetes-init
-          docker ps
-          docker compose logs -f kubernetes-init
+      - name: Up support containers
+        run: docker compose up -d redis database rabbitmq kubernetes
+
+      - name: docker ps & nmap
+        run: docker ps && nmap localhost
+
+      - name: Up prod
+        run: docker compose up -d prod
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
-      - name: nmap
-        run: nmap localhost
+      - name: docker ps & nmap
+        run: docker ps && nmap localhost
+
+      - name: Up init
+        run: docker compose up -d kubernetes-init
+
+      - name: docker ps & nmap
+        run: docker ps && nmap localhost
+
+      - name: init logs
+        run: docker compose logs -f kubernetes-init
+
+      - name: docker ps & nmap
+        run: docker ps && nmap localhost
