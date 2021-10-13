@@ -15,8 +15,15 @@ jobs:
 
     steps:
       - name: Launch WhoAmI
+        run: docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+
+      - name: nmap
         run: |
-          docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+          sudo apt -y install nmap
+          nmap localhost
+
+      - name: docker
+        run: docker ps
 
       - name: Confirm /health returns 200
         run: |
