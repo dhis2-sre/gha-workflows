@@ -114,7 +114,7 @@ jobs:
 
       - name: Kubernetes IP
         run: |
-          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubnetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
+          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubernetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
 
       - name: Up prod
         run: docker compose up -d prod
