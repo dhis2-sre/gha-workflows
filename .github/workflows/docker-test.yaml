@@ -14,22 +14,6 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - name: Launch WhoAmI
-        run: docker run -d -p 8081:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
-
-      - name: nmap
-        run: |
-          sudo apt -y install nmap
-          nmap localhost
-
-      - name: docker
-        run: docker ps
-
-      - name: Confirm /health returns 200
-        run: |
-          sleep 4
-          curl --fail localhost:8081/health
-
       - uses: actions/checkout@v2
 
       - name: Install prerequisites
@@ -79,6 +63,22 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
           echo "VERSION=$VERSION"
+
+      - name: Launch WhoAmI
+        run: docker run -d -p 8081:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+
+      - name: nmap
+        run: |
+          sudo apt -y install nmap
+          nmap localhost
+
+      - name: docker
+        run: docker ps
+
+      - name: Confirm /health returns 200
+        run: |
+          sleep 4
+          curl --fail localhost:8081/health
 
       - name: Run unit and integration tests
         run: |
