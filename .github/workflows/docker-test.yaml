@@ -114,8 +114,7 @@ jobs:
 
       - name: Kubernetes IP
         run: |
-          IP_ADDR=$(docker inspect $(docker container ls --filter name=whoami -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
-          curl --fail $IP_ADDR:8081/health
+          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubnetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
 
       - name: Up prod
         run: docker compose up -d prod
@@ -126,7 +125,9 @@ jobs:
         run: docker ps && nmap localhost
 
       - name: Up init
-        run: docker compose up -d kubernetes-init
+        run: |
+          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubnetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
+          docker compose up -e IP_ADDR=$IP_ADDR -d kubernetes-init
 
       - name: docker ps & nmap
         run: docker ps && nmap localhost
