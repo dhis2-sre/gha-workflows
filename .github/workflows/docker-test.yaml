@@ -29,3 +29,58 @@ jobs:
         run: |
           sleep 4
           curl --fail localhost:8080/health
+
+      - uses: actions/checkout@v2
+
+      - name: Install prerequisites
+        run: |
+          mkdir -p ~/.docker/cli-plugins/
+          curl -SL https://github.com/docker/compose-cli/releases/download/v2.0.0-beta.6/docker-compose-linux-amd64 -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+
+      - name: Create dotenv from example
+        run: |
+          cp .env.example .env
+          sed -i -e "s#SOPS_KMS_ARN=<kms-key-arn>#SOPS_KMS_ARN=$SOPS_KMS_ARN#g" .env
+          sed -i -e "s#AWS_ACCESS_KEY_ID=<aws-access-key-id>#AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID#g" .env
+          sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
+          sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
+          echo "AWS_REGION=$AWS_REGION" >> .env
+        env:
+          SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-central-1
+
+      - name: Load dotenv file
+        uses: c-py/action-dotenv-to-setenv@v2
+        with:
+          env-file: .env
+
+      - name: Create RSA keypair
+        run: |
+          make keys
+          # TODO: Why can't prod find the key??
+          # Bad idea! But what's the alternative? The key isn't used for long...
+          chmod ugo+r rsa_private.pem
+
+      - name: Find version
+        run: |
+          # Strip git ref prefix from version
+          STRIPPED_REF=${GITHUB_REF##refs/*/}
+
+          # Strip "v" prefix from tag name
+          VERSION=${STRIPPED_REF#v}
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+
+          # Export
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "VERSION=$VERSION"
+
+      - name: Run unit and integration tests
+        run: make test
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
