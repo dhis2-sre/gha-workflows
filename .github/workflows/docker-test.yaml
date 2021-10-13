@@ -127,7 +127,7 @@ jobs:
           #docker inspect $CONTAINER_NAME
           export IP_ADDR=$(docker inspect $CONTAINER_NAME | jq -r '.[0].NetworkSettings.Networks | .. | .IPAddress?' | sed 's/^ *//g' | tr -d 'null' | tr -d '\n')
           echo "IP_ADDR: $IP_ADDR"
-          docker compose up -d kubernetes-init
+          docker compose up -e IP_ADDR=$IP_ADDR -d kubernetes-init
 
       - name: docker ps & nmap
         run: docker ps && nmap localhost
