@@ -14,21 +14,21 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-#      - name: Launch WhoAmI
-#        run: docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
-#
-#      - name: nmap
-#        run: |
-#          sudo apt -y install nmap
-#          nmap localhost
-#
-#      - name: docker
-#        run: docker ps
-#
-#      - name: Confirm /health returns 200
-#        run: |
-#          sleep 4
-#          curl --fail localhost:8080/health
+      - name: Launch WhoAmI
+        run: docker run -d -p 8081:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+
+      - name: nmap
+        run: |
+          sudo apt -y install nmap
+          nmap localhost
+
+      - name: docker
+        run: docker ps
+
+      - name: Confirm /health returns 200
+        run: |
+          sleep 4
+          curl --fail localhost:8080/health
 
       - uses: actions/checkout@v2
 
@@ -81,6 +81,14 @@ jobs:
           echo "VERSION=$VERSION"
 
       - name: Run unit and integration tests
-        run: make test
+        run: |
+          #make test
+          docker compose up -d redis database rabbitmq kubernetes
+          sleep 2
+          docker compose up -d prod
+          docker compose up -d kubernetes-init
+          docker ps
+          docker compose logs -f kubernetes-init
+
         env:
           IMAGE_TAG: ${{ env.VERSION }}
