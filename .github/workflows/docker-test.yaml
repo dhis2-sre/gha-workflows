@@ -1,0 +1,24 @@
+name: Tests, build and deploy
+
+on:
+  workflow_call:
+    inputs:
+      DOCKER_IMAGE_NAME:
+        description: 'Docker image name, eg. dhis2/instance-manager-api'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Launch WhoAmI
+        run: |
+          docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+
+      - name: Confirm /health returns 200
+        run: |
+          sleep 4
+          curl --fail localhost:8080/health
