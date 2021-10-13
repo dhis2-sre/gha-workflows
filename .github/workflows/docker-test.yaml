@@ -122,8 +122,8 @@ jobs:
 
       - name: Up init
         run: |
-          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubernetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
-          docker compose up -e IP_ADDR=$IP_ADDR -d kubernetes-init
+          export IP_ADDR=$(docker inspect $(docker container ls --filter name=kubernetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
+          docker compose up -d kubernetes-init
 
       - name: docker ps & nmap
         run: docker ps && nmap localhost
