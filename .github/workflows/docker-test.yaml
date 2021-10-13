@@ -28,7 +28,7 @@ jobs:
       - name: Confirm /health returns 200
         run: |
           sleep 4
-          curl --fail localhost:8080/health
+          curl --fail localhost:8081/health
 
       - uses: actions/checkout@v2
 
