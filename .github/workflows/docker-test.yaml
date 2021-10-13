@@ -106,6 +106,12 @@ jobs:
       - name: docker ps & nmap
         run: docker ps && nmap localhost
 
+      - name: Redis logs
+        run: docker compose logs redis
+
+      - name: RabbitMQ logs
+        run: docker compose logs rabbitmq
+
       - name: Up prod
         run: docker compose up -d prod
         env:
