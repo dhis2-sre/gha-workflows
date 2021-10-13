@@ -84,7 +84,7 @@ jobs:
           echo "VERSION=$VERSION"
 
       - name: Launch WhoAmI
-        run: docker run -d -p 8081:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+        run: docker run -d -p 8081:8080 --name whoami ${{ inputs.DOCKER_IMAGE_NAME }}
 
       - name: nmap setup
         run: sudo apt -y install nmap
@@ -113,7 +113,9 @@ jobs:
         run: docker compose logs rabbitmq
 
       - name: Kubernetes IP
-        run: docker inspect $(docker container ls --filter name=kubernetes -q) | grep IPAddress
+        run: |
+          IP_ADDR=$(docker inspect $(docker container ls --filter name=whoami -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
+          curl --fail $IP_ADDR:8081/health
 
       - name: Up prod
         run: docker compose up -d prod
@@ -134,3 +136,4 @@ jobs:
 
       - name: docker ps & nmap
         run: docker ps && nmap localhost
+
