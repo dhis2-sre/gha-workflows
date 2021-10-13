@@ -175,13 +175,6 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Export
-        run: export snot=snog
-
-      - name: Export
-        run: |
-          echo "snot=$snot"
-
       - name: Push image
         run: |
           docker images
