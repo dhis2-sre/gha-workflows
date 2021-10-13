@@ -7,6 +7,25 @@ on:
         description: 'Docker image name, eg. dhis2/instance-manager-api'
         required: true
         type: string
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+        description: 'Docker Hub Username'
+      DOCKER_PASSWORD:
+        required: true
+        description: 'Docker Hub Password'
+      SOPS_KMS_ARN:
+        required: true
+        description: 'KMS Key used to decrypt SOPS encrypted secrets'
+      AWS_ACCESS_KEY_ID:
+        required: true
+        description: 'AWS Access Key Id'
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+        description: 'AWS Secret Access Key'
+      KUBECONFIG:
+        required: true
+        description: 'Kubernetes Configuration'
 
 jobs:
   build:
