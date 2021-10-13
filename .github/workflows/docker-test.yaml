@@ -89,11 +89,8 @@ jobs:
       - name: nmap setup
         run: sudo apt -y install nmap
 
-      - name: nmap
+      - name: docker ps & nmap
         run: docker ps && nmap localhost
-
-      - name: docker
-        run: docker ps
 
       - name: Confirm /health returns 200
         run: |
