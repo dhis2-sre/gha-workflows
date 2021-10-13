@@ -14,21 +14,21 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - name: Launch WhoAmI
-        run: docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
-
-      - name: nmap
-        run: |
-          sudo apt -y install nmap
-          nmap localhost
-
-      - name: docker
-        run: docker ps
-
-      - name: Confirm /health returns 200
-        run: |
-          sleep 4
-          curl --fail localhost:8080/health
+#      - name: Launch WhoAmI
+#        run: docker run -d -p 8080:8080 ${{ inputs.DOCKER_IMAGE_NAME }}
+#
+#      - name: nmap
+#        run: |
+#          sudo apt -y install nmap
+#          nmap localhost
+#
+#      - name: docker
+#        run: docker ps
+#
+#      - name: Confirm /health returns 200
+#        run: |
+#          sleep 4
+#          curl --fail localhost:8080/health
 
       - uses: actions/checkout@v2
 
