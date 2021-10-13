@@ -112,10 +112,6 @@ jobs:
       - name: RabbitMQ logs
         run: docker compose logs rabbitmq
 
-      - name: Kubernetes IP
-        run: |
-          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubernetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
-
       - name: Up prod
         run: docker compose up -d prod
         env:
@@ -126,7 +122,7 @@ jobs:
 
       - name: Up init
         run: |
-          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubnetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
+          IP_ADDR=$(docker inspect $(docker container ls --filter name=kubernetes -q) | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')
           docker compose up -e IP_ADDR=$IP_ADDR -d kubernetes-init
 
       - name: docker ps & nmap
