@@ -34,7 +34,7 @@ on:
 jobs:
   build:
     if: github.event_name == 'push'
-    runs-on: ubuntu-20.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
 
@@ -95,11 +95,6 @@ jobs:
           echo "VERSION=$VERSION"
 
 # TODO: Split here... "Build"
-      - name: Run unit and integration tests
-        run: make test
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
-
       - name: Prepare
         id: prep
         run: |
@@ -139,6 +134,12 @@ jobs:
           # More: https://github.com/moby/buildkit#--export-cache-options
           # And: https://github.com/docker/buildx#--cache-tonametypetypekeyvalue
           cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
+
+      - name: Run unit and integration tests
+        run: make test
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+          DOCKER_BUILDKIT: 1
 
       - name: Move cache
         run: |
@@ -230,11 +231,10 @@ jobs:
           mkdir $PWD/.kube
           echo "${{ secrets.KUBECONFIG }}" | yq e 'del(.users[].user.exec.env)' - > $PWD/.kube/config
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
-          cp -v /opt/hostedtoolcache/aws-iam-authenticator/0.4.0/x64/aws-iam-authenticator /root/bin/
 
       - name: Get nodes
         run: |
-          aws-iam-authenticator version && env && kubectl get nodes
+          aws-iam-authenticator version && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
 
