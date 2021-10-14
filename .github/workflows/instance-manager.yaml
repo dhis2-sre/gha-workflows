@@ -227,7 +227,7 @@ jobs:
       - run: aws-iam-authenticator version
 
       - name: Setup helmfile
-        uses: mamezou-tech/setup-helmfile@v0.7.0
+        uses: mamezou-tech/setup-helmfile@v0.8.0
 
       - name: Configure kubectl
         run: |
