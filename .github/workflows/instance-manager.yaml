@@ -80,6 +80,7 @@ jobs:
           mkdir $PWD/.kube
           echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
+          cat $PWD/.kube/config
 
       - name: Get nodes
         run: |
