@@ -69,32 +69,6 @@ jobs:
           source .env
           set +o allexport
 
-      - uses: prepor/action-aws-iam-authenticator@master
-      - run: aws-iam-authenticator version
-
-      - name: Setup helmfile
-        uses: mamezou-tech/setup-helmfile@v0.7.0
-
-      - name: Configure kubectl
-        run: |
-          mkdir $PWD/.kube
-          echo "${{ secrets.KUBECONFIG }}" | yq e 'del(.users[].user.exec.env)' - > $PWD/.kube/config
-          echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
-          cat $PWD/.kube/config
-          cp -v /opt/hostedtoolcache/aws-iam-authenticator/0.4.0/x64/aws-iam-authenticator /root/bin/
-
-      - name: Get nodes
-        run: |
-          which aws-iam-authenticator
-          which helm
-          which helmfile
-          which kubectl
-          aws-iam-authenticator version && env && kubectl get nodes
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
       - name: Create RSA keypair
         run: |
           make keys
@@ -242,7 +216,7 @@ jobs:
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - uses: prepor/action-aws-iam-authenticator@master
-      - run: aws-iam-authenticator version && export PATH=$PATH:$(which aws-iam-authenticator)
+      - run: aws-iam-authenticator version
 
       - name: Setup helmfile
         uses: mamezou-tech/setup-helmfile@v0.7.0
@@ -250,13 +224,17 @@ jobs:
       - name: Configure kubectl
         run: |
           mkdir $PWD/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
+          echo "${{ secrets.KUBECONFIG }}" | yq e 'del(.users[].user.exec.env)' - > $PWD/.kube/config
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
+          cp -v /opt/hostedtoolcache/aws-iam-authenticator/0.4.0/x64/aws-iam-authenticator /root/bin/
 
       - name: Get nodes
-        run: kubectl get nodes
+        run: |
+          aws-iam-authenticator version && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Lint Helm
         run: helm lint helm/chart
@@ -299,3 +277,7 @@ jobs:
         env:
           FEATURE_TAG: -${{ env.VERSION }}
           NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
+
+          KUBECONFIG: ${{ env.KUBECONFIG }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
