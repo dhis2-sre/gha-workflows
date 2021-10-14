@@ -84,7 +84,10 @@ jobs:
 
       - name: Get nodes
         run: |
-          export AWS_PROFILE=default
+          which aws-iam-authenticator
+          which helm
+          which helmfile
+          which kubectl
           aws-iam-authenticator version && a=$(which aws-iam-authenticator) && export PATH=$PATH:"${a%/*}/" && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
