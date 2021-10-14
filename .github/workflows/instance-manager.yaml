@@ -39,10 +39,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Log into registry
-        run: echo "$DOCKER_PASSWORD - $DOCKER_USERNAME"
+        run: echo "SOPS_KMS_ARN- $SOPS_KMS_ARN -end"
         env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
 
       - name: Install prerequisites
         run: |
