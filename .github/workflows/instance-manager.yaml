@@ -38,6 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+# TODO: Split here... "Setup"
       - name: Install prerequisites
         run: |
           mkdir -p ~/.docker/cli-plugins/
@@ -52,6 +53,7 @@ jobs:
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
+          echo .env >> $GITHUB_ENV
         env:
           SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -92,6 +94,7 @@ jobs:
 
           echo "VERSION=$VERSION"
 
+# TODO: Split here... "Build"
       - name: Run unit and integration tests
         run: make test
         env:
@@ -186,6 +189,7 @@ jobs:
           docker images
           IMAGE_TAG=${{ env.VERSION }} docker compose push prod
 
+# TODO: Split here... "Deploy"
       - name: Setup yq
         run: |
           wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/bin/yq
@@ -233,8 +237,6 @@ jobs:
           aws-iam-authenticator version && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Lint Helm
         run: helm lint helm/chart
@@ -279,5 +281,3 @@ jobs:
           NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
 
           KUBECONFIG: ${{ env.KUBECONFIG }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
