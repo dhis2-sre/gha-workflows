@@ -38,11 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Log into registry
-        run: echo "SOPS_KMS_ARN- $SOPS_KMS_ARN -end"
-        env:
-          SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
-
       - name: Install prerequisites
         run: |
           mkdir -p ~/.docker/cli-plugins/
@@ -94,12 +89,11 @@ jobs:
           which helm
           which helmfile
           which kubectl
-          echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID-end"
           aws-iam-authenticator version && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Create RSA keypair
         run: |
