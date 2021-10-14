@@ -89,6 +89,7 @@ jobs:
           which helm
           which helmfile
           which kubectl
+          echo "AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID-end"
           aws-iam-authenticator version && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
