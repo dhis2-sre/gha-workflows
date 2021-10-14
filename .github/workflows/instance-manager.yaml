@@ -218,6 +218,9 @@ jobs:
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
 
+      - name: Setup helmfile
+        uses: mamezou-tech/setup-helmfile@v0.7.0
+
       - name: Configure kubectl
         run: |
           mkdir $PWD/.kube
@@ -237,9 +240,6 @@ jobs:
 
       - name: Setup Sops
         uses: mdgreenwald/mozilla-sops-action@v1.1.0
-
-      - name: Setup helmfile
-        uses: mamezou-tech/setup-helmfile@v0.7.0
 
       - name: Setup helm secrets plugin
         run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
