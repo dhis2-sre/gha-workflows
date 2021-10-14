@@ -65,11 +65,11 @@ jobs:
 #        with:
 #          env-file: .env
 
-      - name: Load dotenv file
-        run: |
-          set -o allexport
-          source .env
-          set +o allexport
+#      - name: Load dotenv file
+#        run: |
+#          set -o allexport
+#          source .env
+#          set +o allexport
 
       - name: Create RSA keypair
         run: |
