@@ -49,6 +49,9 @@ jobs:
           mkdir $HOME/.kube
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
 
+      - name: Get nodes
+        run: kubectl get nodes
+
       - name: Create dotenv from example
         run: |
           cp .env.example .env
@@ -222,9 +225,6 @@ jobs:
 
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
-
-      - name: Get nodes
-        run: kubectl get nodes
 
       - name: Lint Helm
         run: helm lint helm/chart
