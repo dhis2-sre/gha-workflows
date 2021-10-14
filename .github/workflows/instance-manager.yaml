@@ -38,6 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Log into registry
+        run: echo "$DOCKER_PASSWORD - $DOCKER_USERNAME"
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Install prerequisites
         run: |
           mkdir -p ~/.docker/cli-plugins/
@@ -70,7 +76,7 @@ jobs:
           set +o allexport
 
       - uses: prepor/action-aws-iam-authenticator@master
-      - run: aws-iam-authenticator version && export PATH=$PATH:$(which aws-iam-authenticator)
+      - run: aws-iam-authenticator version
 
       - name: Setup helmfile
         uses: mamezou-tech/setup-helmfile@v0.7.0
