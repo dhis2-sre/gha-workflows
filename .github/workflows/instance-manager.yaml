@@ -225,10 +225,12 @@ jobs:
         run: |
           mkdir $PWD/.kube
           echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
-          echo "KUBECONFIG=$PWD/.kube/config" >> .env
+          echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Get nodes
         run: kubectl get nodes
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG }}
 
       - name: Lint Helm
         run: helm lint helm/chart
