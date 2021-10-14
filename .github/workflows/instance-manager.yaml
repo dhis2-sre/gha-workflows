@@ -46,8 +46,8 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          mkdir $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          mkdir $PWD/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
 
       - name: Get nodes
         run: kubectl get nodes
