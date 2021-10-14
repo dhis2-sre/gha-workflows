@@ -81,7 +81,7 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" | yq e 'del(.users[].user.exec.env)' - > $PWD/.kube/config
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
           cat $PWD/.kube/config
-          cp /opt/hostedtoolcache/aws-iam-authenticator/0.4.0/x64/aws-iam-authenticator /root/bin/
+          cp -v /opt/hostedtoolcache/aws-iam-authenticator/0.4.0/x64/aws-iam-authenticator /root/bin/
 
       - name: Get nodes
         run: |
@@ -89,7 +89,7 @@ jobs:
           which helm
           which helmfile
           which kubectl
-          aws-iam-authenticator version && a=$(which aws-iam-authenticator) && export PATH=$PATH:"${a%/*}/" && env && kubectl get nodes
+          aws-iam-authenticator version && env && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
 
