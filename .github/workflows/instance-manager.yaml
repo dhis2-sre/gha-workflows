@@ -52,6 +52,7 @@ jobs:
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
+          cat .env
         env:
           SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
