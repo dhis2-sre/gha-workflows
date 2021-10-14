@@ -69,6 +69,23 @@ jobs:
           source .env
           set +o allexport
 
+      - uses: prepor/action-aws-iam-authenticator@master
+      - run: aws-iam-authenticator version && export PATH=$PATH:$(which aws-iam-authenticator)
+
+      - name: Setup helmfile
+        uses: mamezou-tech/setup-helmfile@v0.7.0
+
+      - name: Configure kubectl
+        run: |
+          mkdir $PWD/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
+          echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
+
+      - name: Get nodes
+        run: kubectl get nodes
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG }}
+
       - name: Create RSA keypair
         run: |
           make keys
@@ -216,7 +233,7 @@ jobs:
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - uses: prepor/action-aws-iam-authenticator@master
-      - run: aws-iam-authenticator version
+      - run: aws-iam-authenticator version && export PATH=$PATH:$(which aws-iam-authenticator)
 
       - name: Setup helmfile
         uses: mamezou-tech/setup-helmfile@v0.7.0
