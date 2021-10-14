@@ -82,7 +82,7 @@ jobs:
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Get nodes
-        run: kubectl get nodes
+        run: aws-iam-authenticator version && kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
 
