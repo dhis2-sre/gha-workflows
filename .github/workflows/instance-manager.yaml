@@ -242,9 +242,7 @@ jobs:
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Get nodes
-        run: |
-          env
-          kubectl get nodes
+        run: kubectl get nodes
         env:
           KUBECONFIG: ${{ env.KUBECONFIG }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
