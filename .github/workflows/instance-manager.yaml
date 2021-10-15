@@ -155,37 +155,38 @@ jobs:
 #          rm -rf /tmp/.buildx-cache
 #          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Smoke test image
-        run: |
-          make smoke-test tag=${{ env.VERSION }}
-
-          # TODO: Write note... Ensure that sha...
-          #IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
-          #echo "IMAGE_SHA: $IMAGE_SHA"
-          #echo "env.IMAGE_SHA: ${{ env.IMAGE_SHA }}"
-          #[ "$IMAGE_SHA" == "${{ env.IMAGE_SHA }}" ]
-
-      - name: Confirm /health returns 200
-        run: |
-          sleep 4
-          curl --fail localhost:8080/health
-
-      - name: Confirm process isn't running as root
-        run: |
-          USER=$(docker compose exec -T prod whoami)
-          [ "$USER" != "root" ]
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
-
-      - name: Confirm process is running as pid 1
-        run: |
-          PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
-          [ "$PID" == "1" ]
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
-
-      - name: End smoke test
-        run: make clean
+# TODO: enable smoke test
+#      - name: Smoke test image
+#        run: |
+#          make smoke-test tag=${{ env.VERSION }}
+#
+#          # TODO: Write note... Ensure that sha...
+#          #IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
+#          #echo "IMAGE_SHA: $IMAGE_SHA"
+#          #echo "env.IMAGE_SHA: ${{ env.IMAGE_SHA }}"
+#          #[ "$IMAGE_SHA" == "${{ env.IMAGE_SHA }}" ]
+#
+#      - name: Confirm /health returns 200
+#        run: |
+#          sleep 4
+#          curl --fail localhost:8080/health
+#
+#      - name: Confirm process isn't running as root
+#        run: |
+#          USER=$(docker compose exec -T prod whoami)
+#          [ "$USER" != "root" ]
+#        env:
+#          IMAGE_TAG: ${{ env.VERSION }}
+#
+#      - name: Confirm process is running as pid 1
+#        run: |
+#          PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
+#          [ "$PID" == "1" ]
+#        env:
+#          IMAGE_TAG: ${{ env.VERSION }}
+#
+#      - name: End smoke test
+#        run: make clean
 
       - name: Log into registry
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
