@@ -33,11 +33,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
     if: github.event_name == 'push'
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
+# TODO: Split here... "Setup"
       - name: Install prerequisites
         run: |
           mkdir -p ~/.docker/cli-plugins/
@@ -52,16 +53,15 @@ jobs:
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
+          cat .env | sed /^#/d >> $GITHUB_ENV
         env:
-          SOPS_KMS_ARN: ${{ secrets.KMS_KEY_ARN }}
+          SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-central-1
 
-      - name: Load dotenv file
-        uses: c-py/action-dotenv-to-setenv@v2
-        with:
-          env-file: .env
+      - name: Environment
+        run: env
 
       - name: Create RSA keypair
         run: |
@@ -86,24 +86,20 @@ jobs:
 
           echo "VERSION=$VERSION"
 
+# TODO: Split here... "Build"
       - name: Build image
-        run: |
-          make prod-image tag=${{ env.VERSION }}
-          IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
-          echo "IMAGE_SHA=$IMAGE_SHA" >> $GITHUB_ENV
-      #          # TODO: Write note... Ensure that sha...
-      #          echo "IMAGE_SHA: $IMAGE_SHA"
-      #          # TODO: Get a ts for creation and assert that too... Maybe... Is it necessary
-      #
+        run: make prod-image tag=$IMAGE_TAG
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
+      - name: Run unit and integration tests
+        run: make test
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
+
       - name: Smoke test image
         run: |
           make smoke-test tag=${{ env.VERSION }}
-
-      #          # TODO: Write note... Ensure that sha...
-      #          IMAGE_SHA=$(docker inspect ${{ inputs.DOCKER_IMAGE_NAME }}:${{ env.VERSION }} | jq -r '.[0].Id')
-      #          echo "IMAGE_SHA: $IMAGE_SHA"
-      #          echo "env.IMAGE_SHA: ${{ env.IMAGE_SHA }}"
-      #          [ "$IMAGE_SHA" == "${{ env.IMAGE_SHA }}" ]
 
       - name: Confirm /health returns 200
         run: |
@@ -127,11 +123,6 @@ jobs:
       - name: End smoke test
         run: make clean
 
-      - name: Run unit and integration tests
-        run: make test
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
-
       - name: Log into registry
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
         env:
@@ -139,8 +130,11 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push image
-        run: make push-prod tag=${{ env.VERSION }}
+        run: |
+          docker images
+          IMAGE_TAG=${{ env.VERSION }} docker compose push prod
 
+# TODO: Split here... "Deploy"
       - name: Setup yq
         run: |
           wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/bin/yq
@@ -173,13 +167,21 @@ jobs:
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
 
+      - name: Setup helmfile
+        uses: mamezou-tech/setup-helmfile@v0.8.0
+
       - name: Configure kubectl
         run: |
-          mkdir /home/runner/.kube
-          echo "${{ secrets.KUBECONFIG }}" > /home/runner/.kube/config
+          mkdir $PWD/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
+          echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Get nodes
         run: kubectl get nodes
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Lint Helm
         run: helm lint helm/chart
@@ -192,9 +194,6 @@ jobs:
 
       - name: Setup Sops
         uses: mdgreenwald/mozilla-sops-action@v1.1.0
-
-      - name: Setup helmfile
-        uses: mamezou-tech/setup-helmfile@v0.7.0
 
       - name: Setup helm secrets plugin
         run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
@@ -225,3 +224,7 @@ jobs:
         env:
           FEATURE_TAG: -${{ env.VERSION }}
           NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
+
+          KUBECONFIG: ${{ env.KUBECONFIG }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
