@@ -94,10 +94,7 @@ jobs:
 
       - name: Smoke test image
         run: |
-          #make smoke-test tag=${{ env.VERSION }}
-          docker compose up -d rabbitmq
-          sleep 3
-          IMAGE_TAG=${{ env.VERSION }} docker compose up prod
+          make smoke-test tag=${{ env.VERSION }}
 
       - name: Confirm /health returns 200
         run: |
