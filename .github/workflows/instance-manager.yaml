@@ -102,11 +102,14 @@ jobs:
           hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
           if [ -n "$hasPort" ]; then
             curl --fail localhost:8080/health
+          else
+            echo "No test performed!"
           fi
 
       - name: Confirm process isn't running as root
         run: |
           USER=$(docker compose exec -T prod whoami)
+          echo "User: $USER"
           [ "$USER" != "root" ]
         env:
           IMAGE_TAG: ${{ env.VERSION }}
@@ -114,6 +117,7 @@ jobs:
       - name: Confirm process is running as pid 1
         run: |
           PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
+          echo "PID: $PID"
           [ "$PID" == "1" ]
         env:
           IMAGE_TAG: ${{ env.VERSION }}
