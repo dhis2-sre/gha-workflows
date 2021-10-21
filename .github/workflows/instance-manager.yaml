@@ -3,6 +3,11 @@ name: Tests, build and deploy
 on:
   workflow_call:
     inputs:
+      RUN_PID_1_TEST:
+        description: 'TODO'
+        required: false
+        type: boolean
+        default: true
       DOCKER_IMAGE_NAME:
         description: 'Docker image name, eg. dhis2/instance-manager-api'
         required: true
@@ -95,26 +100,30 @@ jobs:
       - name: Smoke test image
         run: |
           make smoke-test tag=${{ env.VERSION }}
-
-      - name: Confirm /health returns 200
-        run: |
           sleep 4
+
           hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
           if [ -n "$hasPort" ]; then
-            curl --fail localhost:8080/health
+            echo "hasPort: $hasPort"
+            echo "hasPort=$hasPort" >> $GITHUB_ENV
           else
-            echo "No test performed!"
+            echo "No port found!"
           fi
+
+      - name: Confirm /health returns 200
+        if: ${{ env.hasPort }}
+        run: curl --fail localhost:8080/health
 
       - name: Confirm process isn't running as root
         run: |
-          USER=$(docker compose exec -T prod whoami)
+          USER=$(docker compose run prod whoami)
           echo "User: $USER"
           [ "$USER" != "root" ]
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
       - name: Confirm process is running as pid 1
+        if: ${{ inputs.RUN_PID_1_TEST }}
         run: |
           PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
           echo "PID: $PID"
@@ -219,12 +228,15 @@ jobs:
 
       - name: Deploy
         run: |
+          export FEATURE_TAG=-$VERSION
+          helmfile -e $ENVIRONMENT sync
+
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
+            kubectl delete pod --namespace $NAMESPACE --selector=app.kubernetes.io/instance=instance-manager-api-dev
+          fi
+
           if [[ "$ENVIRONMENT" == "feature" ]]; then
-            export FEATURE_TAG=-$VERSION
-            helmfile -e feature sync
             kubectl delete pod --namespace $NAMESPACE --selector=app.kubernetes.io/instance=instance-manager-api-feat${FEATURE_TAG,,}
-          else
-            helmfile -e $ENVIRONMENT sync
           fi
 
           kubectl get pods --namespace $NAMESPACE
