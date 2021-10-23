@@ -226,7 +226,7 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/feature/')
         run: echo "ENVIRONMENT=feature" >> $GITHUB_ENV
 
-      - name: "Find pod to "
+      - name: "Find pod to restart"
         if: ${{ inputs.POD_NAME }}
         run: |
           if [ "$ENVIRONMENT" == "feature" ]; then
