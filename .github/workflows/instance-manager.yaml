@@ -3,17 +3,18 @@ name: Tests, build and deploy
 on:
   workflow_call:
     inputs:
+      POD_NAME:
+        description: >
+          Used to kill the pods after an update on feature or dev where the docker image tag doesn't change
+        required: false
+        type: boolean
       RUN_PID_1_TEST:
-        description: 'TODO'
+        description: Used to skip pid 1 test for applications which immidiatly exits such as the Inspector
         required: false
         type: boolean
         default: true
-      DOCKER_IMAGE_NAME:
-        description: 'Docker image name, eg. dhis2/instance-manager-api'
-        required: true
-        type: string
       PROCESS_NAME:
-        description: 'Container process name, eg. dhis2-instance-manager-api. Used to assert that the process is running under pid 1'
+        description: Container process name, eg. dhis2-instance-manager-api. Used to assert that the process is running under pid 1
         required: true
         type: string
     secrets:
@@ -177,7 +178,6 @@ jobs:
         run: |
           TARGET=helm/chart/Chart.yaml
           yq -i e ".appVersion = \"${{ env.VERSION }}\"" $TARGET
-          cat $TARGET
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - uses: prepor/action-aws-iam-authenticator@master
@@ -226,21 +226,28 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/feature/')
         run: echo "ENVIRONMENT=feature" >> $GITHUB_ENV
 
+      - name: "Find pod to "
+        if: ${{ inputs.POD_NAME }}
+        run: |
+          if [ "$ENVIRONMENT" == "feature" ]; then
+            echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-feat${FEATURE_TAG,,}" >> $GITHUB_ENV
+          else
+            echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-$ENVIRONMENT" >> $GITHUB_ENV
+          fi
+        env:
+          FEATURE_TAG: -${{ env.VERSION }}
+
       - name: Deploy
         run: |
-          export FEATURE_TAG=-$VERSION
           helmfile -e $ENVIRONMENT sync
 
-          if [[ "$ENVIRONMENT" == "dev" ]]; then
-            kubectl delete pod --namespace $NAMESPACE --selector=app.kubernetes.io/instance=instance-manager-api-dev
-          fi
-
-          if [[ "$ENVIRONMENT" == "feature" ]]; then
-            kubectl delete pod --namespace $NAMESPACE --selector=app.kubernetes.io/instance=instance-manager-api-feat${FEATURE_TAG,,}
+          if [ -n "$POD_SELECTOR" ]; then
+            kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
           fi
 
           kubectl get pods --namespace $NAMESPACE
         env:
+          POD_SELECTOR: ${{ env.POD_SELECTOR }}
           FEATURE_TAG: -${{ env.VERSION }}
           NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
 
