@@ -7,7 +7,7 @@ on:
         description: >
           Used to kill the pods after an update on feature or dev where the docker image tag doesn't change
         required: false
-        type: boolean
+        type: string
       RUN_PID_1_TEST:
         description: Used to skip pid 1 test for applications which immidiatly exits such as the Inspector
         required: false
