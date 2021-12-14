@@ -236,8 +236,10 @@ jobs:
 
       - name: Setup Skaffold
         run: |
-          wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O /usr/bin/skaffold
-          chmod +x /usr/bin/skaffold
+#          wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O /usr/bin/skaffold
+#          chmod +x /usr/bin/skaffold
+          wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O ./skaffold
+          chmod +x ./skaffold
         env:
           VERSION: v1.35.1
           BINARY: skaffold-linux-amd64
@@ -245,7 +247,7 @@ jobs:
       - name: Deploy
         run: |
           IMAGE=$(yq e '.services.prod.image' docker-compose.yml | cut -f1 -d":")
-          skaffold deploy --images $IMAGE:$VERSION
+          ./skaffold deploy --images $IMAGE:$VERSION
 
           if [ -n "$POD_SELECTOR" ]; then
             kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
