@@ -111,6 +111,8 @@ jobs:
             echo "No port found!"
           fi
 
+          docker ps
+
       - name: Confirm /health returns 200
         if: ${{ env.hasPort }}
         run: curl --fail localhost:8080/health
