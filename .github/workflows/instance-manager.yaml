@@ -102,6 +102,7 @@ jobs:
         run: |
           make smoke-test tag=$VERSION
           sleep 8
+          docker compose logs prod
 
           hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
           if [ -n "$hasPort" ]; then
