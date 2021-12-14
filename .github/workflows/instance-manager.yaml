@@ -96,13 +96,11 @@ jobs:
 
 # TODO: Split here... "Build"
       - name: Build image
-        run: make prod-image tag=$IMAGE_TAG
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
+        run: make prod-image tag=$VERSION
 
       - name: Smoke test image
         run: |
-          make smoke-test tag=${{ env.VERSION }}
+          make smoke-test tag=$VERSION
           sleep 4
 
           hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
@@ -151,7 +149,9 @@ jobs:
       - name: Push image
         run: |
           docker images
-          IMAGE_TAG=${{ env.VERSION }} docker compose push prod
+          make push-prod
+        env:
+          IMAGE_TAG: ${{ env.VERSION }}
 
 # TODO: Split here... "Deploy"
       - name: Setup yq
@@ -231,13 +231,7 @@ jobs:
       - name: "Find pod to restart"
         if: ${{ inputs.POD_NAME }}
         run: |
-          if [ "$ENVIRONMENT" == "feature" ]; then
-            echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-feat${FEATURE_TAG,,}" >> $GITHUB_ENV
-          else
-            echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-$ENVIRONMENT" >> $GITHUB_ENV
-          fi
-        env:
-          FEATURE_TAG: -${{ env.VERSION }}
+          echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-$ENVIRONMENT" >> $GITHUB_ENV
 
       - name: Deploy
         run: |
