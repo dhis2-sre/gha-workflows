@@ -239,7 +239,8 @@ jobs:
 
       - name: Deploy
         run: |
-          helmfile -e $ENVIRONMENT sync
+          IMAGE=$(yq e '.services.prod.image' docker-compose.yml | cut -f1 -d":")
+          skaffold deploy --images $IMAGE:$VERSION
 
           if [ -n "$POD_SELECTOR" ]; then
             kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
