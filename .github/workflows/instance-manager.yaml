@@ -71,12 +71,10 @@ jobs:
 
       - name: Create RSA keypair
         run: |
-          make keys
-          # TODO: Why can't prod find the key??
-          # Bad idea! But what's the alternative? The key isn't used for long...
-          chmod ugo+r rsa_private.pem
-          echo "PRIVATE_KEY=\"$(sed -z 's/\n/\\n/g' rsa_private.pem)\"" >> .env
-          echo "PUBLIC_KEY=\"$(sed -z 's/\n/\\n/g' rsa_public.pem)\"" >> .env
+          if make keys; then
+            echo "PRIVATE_KEY=\"$(sed -z 's/\n/\\n/g' rsa_private.pem)\"" >> .env
+            echo "PUBLIC_KEY=\"$(sed -z 's/\n/\\n/g' rsa_public.pem)\"" >> .env
+          fi
 
       - name: Find version
         run: |
