@@ -190,9 +190,6 @@ jobs:
       - uses: prepor/action-aws-iam-authenticator@master
       - run: aws-iam-authenticator version
 
-      - name: Setup helmfile
-        uses: mamezou-tech/setup-helmfile@v0.8.0
-
       - name: Configure kubectl
         run: |
           mkdir $PWD/.kube
@@ -236,6 +233,14 @@ jobs:
         if: ${{ inputs.POD_NAME }}
         run: |
           echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-$ENVIRONMENT" >> $GITHUB_ENV
+
+      - name: Setup Skaffold
+        run: |
+          wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O /usr/bin/skaffold
+          chmod +x /usr/bin/skaffold
+        env:
+          VERSION: v1.35.1
+          BINARY: skaffold-linux-amd64
 
       - name: Deploy
         run: |
