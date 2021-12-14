@@ -205,15 +205,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Lint Helm
-        run: helm lint helm/chart
-
-      - name: Test chart
-        run: echo TODO
-
-      - name: Push chart
-        run: echo TODO
-
       - name: Setup Sops
         uses: mdgreenwald/mozilla-sops-action@v1.1.0
 
@@ -231,6 +222,15 @@ jobs:
       - name: "Environment: feature"
         if: startsWith(github.ref, 'refs/heads/feature/')
         run: echo "ENVIRONMENT=feature" >> $GITHUB_ENV
+
+      - name: Lint Helm
+        run: helm lint helm/chart -f helm/data/values/$ENVIRONMENT/values.yaml -f helm/data/secrets/$ENVIRONMENT/values.yaml
+
+      - name: Test chart
+        run: echo TODO
+
+      - name: Push chart
+        run: echo TODO
 
       - name: "Find pod to restart"
         if: ${{ inputs.POD_NAME }}
