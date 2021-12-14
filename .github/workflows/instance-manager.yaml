@@ -152,9 +152,7 @@ jobs:
       - name: Push image
         run: |
           docker images
-          make push-prod
-        env:
-          IMAGE_TAG: ${{ env.VERSION }}
+          make push-prod tag=$VERSION
 
 # TODO: Split here... "Deploy"
       - name: Setup yq
