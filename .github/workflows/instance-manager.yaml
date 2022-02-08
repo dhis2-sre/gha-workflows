@@ -99,7 +99,6 @@ jobs:
       - name: Smoke test image
         run: |
           make smoke-test tag=$VERSION
-          docker compose logs prod
 
           hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
           if [ -n "$hasPort" ]; then
@@ -109,13 +108,18 @@ jobs:
             echo "No port found!"
           fi
 
+          sleep 5
           docker ps
+          docker compose logs prod
         env:
           GIN_MODE: debug
 
       - name: Confirm /health returns 200
         if: ${{ env.hasPort }}
-        run: curl --fail localhost:8080/health
+        run: |
+          docker ps
+          docker compose logs prod
+          curl --fail localhost:8080/health
 
       - name: Confirm process isn't running as root
         run: |
