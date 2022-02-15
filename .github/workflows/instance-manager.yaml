@@ -4,8 +4,7 @@ on:
   workflow_call:
     inputs:
       POD_NAME:
-        description: >
-          Used to kill the pods after an update on feature or dev where the docker image tag doesn't change
+        description: Used to kill the pods after an update on feature or dev where the docker image tag doesn't change
         required: false
         type: string
       RUN_PID_1_TEST:
@@ -25,22 +24,22 @@ on:
     secrets:
       DOCKER_USERNAME:
         required: true
-        description: 'Docker Hub Username'
+        description: Docker Hub Username
       DOCKER_PASSWORD:
         required: true
-        description: 'Docker Hub Password'
+        description: Docker Hub Password
       SOPS_KMS_ARN:
         required: true
-        description: 'KMS Key used to decrypt SOPS encrypted secrets'
+        description: KMS Key used to decrypt SOPS encrypted secrets
       AWS_ACCESS_KEY_ID:
         required: true
-        description: 'AWS Access Key Id'
+        description: AWS Access Key Id
       AWS_SECRET_ACCESS_KEY:
         required: true
-        description: 'AWS Secret Access Key'
+        description: AWS Secret Access Key
       KUBECONFIG:
         required: true
-        description: 'Kubernetes Configuration'
+        description: Kubernetes Configuration
 
 jobs:
   build:
