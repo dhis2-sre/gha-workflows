@@ -119,12 +119,12 @@ jobs:
         env:
           GIN_MODE: debug
 
-      - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }}) returns 200
+      - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }} returns 200
         if: ${{ env.hasPort }}
         run: |
           docker ps
           docker compose logs prod
-          curl --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }})
+          curl --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
 
       - name: Confirm process isn't running as root
         run: |
