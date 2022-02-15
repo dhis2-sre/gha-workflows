@@ -94,7 +94,7 @@ jobs:
 
 # TODO: Split here... "Build"
       - name: Build image
-        run: make prod-image tag=$VERSION
+        run: make docker-image tag=$VERSION
 
       - name: Smoke test image
         run: |
@@ -155,7 +155,7 @@ jobs:
       - name: Push image
         run: |
           docker images
-          make push-prod tag=$VERSION
+          make push-docker-image tag=$VERSION
 
 # TODO: Split here... "Deploy"
       - name: Setup yq
