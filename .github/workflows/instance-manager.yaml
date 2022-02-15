@@ -17,6 +17,11 @@ on:
         description: Container process name, eg. dhis2-instance-manager-api. Used to assert that the process is running under pid 1
         required: true
         type: string
+      HEALTH_CHECK_ENDPOINT:
+        description: Health check endpoint
+        required: false
+        type: string
+        default: /health
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -114,12 +119,12 @@ jobs:
         env:
           GIN_MODE: debug
 
-      - name: Confirm /health returns 200
+      - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }}) returns 200
         if: ${{ env.hasPort }}
         run: |
           docker ps
           docker compose logs prod
-          curl --fail localhost:8080/health
+          curl --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }})
 
       - name: Confirm process isn't running as root
         run: |
