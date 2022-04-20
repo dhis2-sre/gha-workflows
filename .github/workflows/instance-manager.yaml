@@ -134,7 +134,7 @@ jobs:
 
       - name: Confirm process isn't running as root
         run: |
-          USER=$(docker compose run prod whoami)
+          USER=$(docker compose run --entrypoint whoami prod)
           echo "User: $USER"
           [ "$USER" != "root" ]
         env:
