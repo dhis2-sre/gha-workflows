@@ -47,13 +47,13 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-python@v3
         with:
-          go-version: 1.18
-      - name: Lint Go code
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
+          python-version: '3.x'
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit checks
+        run: make check
 
 # TODO: Split here... "Setup"
       - name: Install prerequisites
