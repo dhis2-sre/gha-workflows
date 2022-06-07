@@ -135,7 +135,7 @@ jobs:
         run: |
           docker ps
           docker compose logs prod
-          curl --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
+          curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
 
       - name: Confirm process isn't running as root
         run: |
