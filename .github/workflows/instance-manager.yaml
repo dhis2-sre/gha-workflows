@@ -176,7 +176,8 @@ jobs:
 # TODO: Split here... "Deploy"
       - name: Setup yq
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/bin/yq
+          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /tmp/yq
+          sudo mv /tmp/yq /usr/bin/yq
           chmod +x /usr/bin/yq
         env:
           VERSION: v4.2.0
