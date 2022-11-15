@@ -148,7 +148,7 @@ jobs:
       - name: Confirm process is running as pid 1
         if: ${{ inputs.RUN_PID_1_TEST }}
         run: |
-          PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }})
+          PID=$(docker compose exec -T prod pgrep ${{ inputs.PROCESS_NAME }} | head -n 1)
           echo "PID: $PID"
           [ "$PID" == "1" ]
         env:
