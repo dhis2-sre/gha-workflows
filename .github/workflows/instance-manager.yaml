@@ -220,8 +220,10 @@ jobs:
           yq -i e ".appVersion = \"${{ env.VERSION }}\"" $TARGET
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
-      - uses: prepor/action-aws-iam-authenticator@master
-      - run: aws-iam-authenticator version
+      - if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        uses: prepor/action-aws-iam-authenticator@master
+      - if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        run: aws-iam-authenticator version
 
       - name: Pin kubectl to version v1.23.6 (https://github.com/aws/aws-cli/issues/6920)
         if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
