@@ -248,7 +248,7 @@ jobs:
 
       - name: Setup Sops
         if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
-        uses: mdgreenwald/mozilla-sops-action@v1.2.0
+        uses: mdgreenwald/mozilla-sops-action@v1.4.1
 
       - name: Setup helm secrets plugin
         if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
