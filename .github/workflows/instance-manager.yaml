@@ -52,25 +52,20 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
       - uses: actions/setup-go@v3
         with:
           go-version: 1.20.1
 
-      - name: Install goimports
-        run: go install golang.org/x/tools/cmd/goimports@latest
-
-      - name: Run pre-commit checks
-        run: make check
-
-# TODO: Split here... "Setup"
       - name: Install prerequisites
         run: |
+          make init
+
           mkdir -p ~/.docker/cli-plugins/
           curl -SL https://github.com/docker/compose-cli/releases/download/v2.0.0-beta.6/docker-compose-linux-amd64 -o ~/.docker/cli-plugins/docker-compose
           chmod +x ~/.docker/cli-plugins/docker-compose
+
+      - name: Run pre-commit checks
+        run: make check
 
       - name: Create dotenv from example
         run: |
