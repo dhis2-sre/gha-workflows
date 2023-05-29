@@ -166,8 +166,8 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
-      - name: End smoke test
-        run: make clean
+#      - name: End smoke test
+#        run: make clean
 
       - name: Run unit and integration tests
         run: make test
