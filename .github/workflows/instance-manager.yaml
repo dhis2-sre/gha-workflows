@@ -256,7 +256,7 @@ jobs:
 
       - name: Lint Helm
         if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
-        run: helm lint helm/chart -f helm/data/values/$ENVIRONMENT/values.yaml -f helm/data/secrets/$ENVIRONMENT/values.yaml
+        run: helm lint helm/chart -f helm/data/secrets/$ENVIRONMENT/values.yaml
 
       - name: Test chart
         if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
