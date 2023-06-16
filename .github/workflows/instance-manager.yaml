@@ -101,9 +101,7 @@ jobs:
           echo "CLASSIFICATION=dev" >> $GITHUB_ENV
 
       - name: Set hostname based on environment
-        run: |
-          sed -i -e "s#HOSTNAME=api.im.\$ENVIRONMENT.test.c.dhis2.org#HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org#g" .env
-          cat .env | sed /^#/d >> $GITHUB_ENV
+        run: echo "HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
 
       - name: Environment
         run: env
