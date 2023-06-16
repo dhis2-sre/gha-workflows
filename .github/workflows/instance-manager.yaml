@@ -101,6 +101,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-central-1
 
+      - name: Set hostname based on environment
+        run: echo "HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
+
       - name: Environment
         run: env
 
