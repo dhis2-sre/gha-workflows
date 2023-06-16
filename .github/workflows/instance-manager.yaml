@@ -74,7 +74,6 @@ jobs:
           sed -i -e "s#AWS_ACCESS_KEY_ID=<aws-access-key-id>#AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID#g" .env
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
-          sed -i -e "s#HOSTNAME=api.im.\$ENVIRONMENT.test.c.dhis2.org#HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
           cat .env | sed /^#/d >> $GITHUB_ENV
         env:
