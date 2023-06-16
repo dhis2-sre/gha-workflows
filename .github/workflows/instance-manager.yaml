@@ -84,15 +84,21 @@ jobs:
 
       - name: "Environment: dev"
         if: github.ref == 'refs/heads/master'
-        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+        run: |
+          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          echo "CLASSIFICATION=dev" >> $GITHUB_ENV
 
       - name: "Environment: prod"
         if: startsWith(github.ref, 'refs/tags/v')
-        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+        run: |
+          echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          echo "CLASSIFICATION=prod" >> $GITHUB_ENV
 
       - name: "Environment: feature"
         if: startsWith(github.ref, 'refs/heads/feature/')
-        run: echo "ENVIRONMENT=feature" >> $GITHUB_ENV
+        run: |
+          echo "ENVIRONMENT=feature" >> $GITHUB_ENV
+          echo "CLASSIFICATION=dev" >> $GITHUB_ENV
 
       - name: Environment
         run: env
