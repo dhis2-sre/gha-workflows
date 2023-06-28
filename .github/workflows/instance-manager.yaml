@@ -101,8 +101,10 @@ jobs:
           echo "ENVIRONMENT=feature" >> $GITHUB_ENV
           echo "CLASSIFICATION=dev" >> $GITHUB_ENV
 
-      - name: Set hostname based on environment
-        run: echo "HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
+      - name: Set hostnames based on environment
+        run: |
+          echo "API_HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
+          echo "HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
 
       - name: Environment
         run: env
