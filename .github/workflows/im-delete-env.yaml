@@ -1,0 +1,73 @@
+name: Delete deployed environment
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+        description: AWS Access Key Id
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+        description: AWS Secret Access Key
+      KUBECONFIG:
+        required: true
+        description: Kubernetes Configuration
+
+jobs:
+  delete-env:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Environment: feature"
+        run: |
+          HEAD_BRANCH=${{ github.head_ref }}
+          # convert to lower case
+          HEAD_BRANCH_LOWERCASE=${HEAD_BRANCH,,}
+          # substitute all forward slashes "/" with hyphens "-"
+          HEAD_BRANCH_LOWERCASE_NO_SLASHES=${HEAD_BRANCH_LOWERCASE//\//-}
+
+          echo "ENVIRONMENT=$HEAD_BRANCH_LOWERCASE_NO_SLASHES" >> $GITHUB_ENV
+          echo "CLASSIFICATION=feature" >> $GITHUB_ENV
+
+      - name: Setup aws-iam-authenticator
+        uses: prepor/action-aws-iam-authenticator@master
+
+      - name: Check aws-iam-authenticator version
+        run: aws-iam-authenticator version
+
+      - name: Pin kubectl to version v1.23.6 (https://github.com/aws/aws-cli/issues/6920)
+        run: |
+          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+
+      - name: Configure kubectl
+        run: |
+          mkdir $PWD/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
+          echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
+
+      - name: Setup Sops
+        uses: mdgreenwald/mozilla-sops-action@v1.4.1
+
+      - name: Setup helm secrets plugin
+        run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
+
+      - name: Setup Skaffold
+        run: |
+          wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O ./skaffold
+          chmod +x ./skaffold
+        env:
+          VERSION: v2.6.0
+          BINARY: skaffold-linux-amd64
+
+      - name: Delete environment
+        run: |
+          SKAFFOLD_PROFILE=$([ "$CLASSIFICATION" == "feature" ] && echo "dev" || echo "$CLASSIFICATION")
+
+          ./skaffold delete --profile $SKAFFOLD_PROFILE
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
