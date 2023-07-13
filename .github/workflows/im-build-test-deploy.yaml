@@ -1,4 +1,4 @@
-name: Tests, build and deploy
+name: Build, test and deploy
 
 on:
   workflow_call:
@@ -99,9 +99,8 @@ jobs:
       - name: "Environment: feature"
         if: github.event_name == 'pull_request'
         run: |
-          HEAD_BRANCH=${{ github.head_ref }}
           # convert to lower case
-          HEAD_BRANCH_LOWERCASE=${HEAD_BRANCH,,}
+          HEAD_BRANCH_LOWERCASE=${GITHUB_HEAD_REF,,}
           # substitute all forward slashes "/" with hyphens "-"
           HEAD_BRANCH_LOWERCASE_NO_SLASHES=${HEAD_BRANCH_LOWERCASE//\//-}
 
