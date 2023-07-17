@@ -1,4 +1,4 @@
-name: Tests, build and deploy
+name: Build, test and deploy
 
 on:
   workflow_call:
@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       RUN_PID_1_TEST:
-        description: Used to skip pid 1 test for applications which immidiatly exits such as the Inspector
+        description: Used to skip pid 1 test for applications which immediately exits such as the Inspector
         required: false
         type: boolean
         default: true
@@ -43,7 +43,8 @@ on:
 
 jobs:
   build:
-    if: github.event_name == 'push'
+    env:
+      DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy')) }}
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -96,10 +97,16 @@ jobs:
           echo "CLASSIFICATION=prod" >> $GITHUB_ENV
 
       - name: "Environment: feature"
-        if: startsWith(github.ref, 'refs/heads/feature/')
+        if: github.event_name == 'pull_request'
         run: |
-          echo "ENVIRONMENT=feature" >> $GITHUB_ENV
-          echo "CLASSIFICATION=dev" >> $GITHUB_ENV
+          # convert to lower case
+          HEAD_BRANCH_LOWERCASE=${GITHUB_HEAD_REF,,}
+          # substitute all forward slashes "/" with hyphens "-"
+          HEAD_BRANCH_LOWERCASE_NO_SLASHES=${HEAD_BRANCH_LOWERCASE//\//-}
+
+          echo "ENVIRONMENT=$HEAD_BRANCH_LOWERCASE_NO_SLASHES" >> $GITHUB_ENV
+          echo "CLASSIFICATION=feature" >> $GITHUB_ENV
+          echo "SANITIZED_HEAD_BRANCH=$HEAD_BRANCH_LOWERCASE_NO_SLASHES" >> $GITHUB_ENV
 
       - name: Set hostnames based on environment
         run: |
@@ -119,11 +126,11 @@ jobs:
 
       - name: Find version
         run: |
-          # Strip git ref prefix from version
-          STRIPPED_REF=${GITHUB_REF##refs/*/}
+          # Use the head branch for PR event and branch/tag for push
+          VERSION=${SANITIZED_HEAD_BRANCH:-$GITHUB_REF_NAME}
 
           # Strip "v" prefix from tag name
-          VERSION=${STRIPPED_REF#v}
+          [ "$GITHUB_REF_TYPE" == "tag" ] && VERSION=${VERSION#v}
 
           # Use Docker `latest` tag convention
           [ "$VERSION" == "master" ] && VERSION=latest
@@ -188,21 +195,19 @@ jobs:
           IMAGE_TAG: ${{ env.VERSION }}
 
       - name: Log into registry
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
         run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push image
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
         run: |
           docker images
           make push-docker-image tag=$VERSION
 
 # TODO: Split here... "Deploy"
       - name: Setup yq
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /tmp/yq
           sudo mv /tmp/yq /usr/bin/yq
@@ -212,7 +217,7 @@ jobs:
           BINARY: yq_linux_amd64
 
       - name: Update chart image tag
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           TARGET=helm/chart/values.yaml
           yq -i e ".image.tag = \"${{ env.VERSION }}\"" $TARGET
@@ -220,83 +225,86 @@ jobs:
       #          [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - name: Update chart version
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') && startsWith(github.ref, 'refs/tags/v') }}
+        if:  ${{ startsWith(github.ref, 'refs/tags/v') && env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           TARGET=helm/chart/Chart.yaml
           yq -i e ".version = \"${{ env.VERSION }}\"" $TARGET
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - name: Update chart app version
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           TARGET=helm/chart/Chart.yaml
           yq -i e ".appVersion = \"${{ env.VERSION }}\"" $TARGET
           [ "$(git diff --exit-code $TARGET)" != "0" ]
 
-      - if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+      - name: Setup aws-iam-authenticator
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         uses: prepor/action-aws-iam-authenticator@master
-      - if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+
+      - name: Check aws-iam-authenticator version
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: aws-iam-authenticator version
 
       - name: Pin kubectl to version v1.23.6 (https://github.com/aws/aws-cli/issues/6920)
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
       - name: Configure kubectl
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           mkdir $PWD/.kube
           echo "${{ secrets.KUBECONFIG }}" > $PWD/.kube/config
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Get nodes
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: kubectl get nodes
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Setup Sops
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         uses: mdgreenwald/mozilla-sops-action@v1.4.1
 
       - name: Setup helm secrets plugin
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
 
       - name: Lint Helm
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
-        run: helm lint helm/chart -f helm/data/secrets/$ENVIRONMENT/values.yaml
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
+        run: helm lint helm/chart -f helm/data/secrets/$CLASSIFICATION/values.yaml
 
       - name: Test chart
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
         run: echo TODO
 
       - name: Push chart
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
         run: echo TODO
 
       - name: Find pod to restart
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') && inputs.POD_NAME }}
+        if: ${{ inputs.POD_NAME && env.DEPLOY_ENVIRONMENT == 'true' }}
         run: echo "POD_SELECTOR=app.kubernetes.io/instance=${{ inputs.POD_NAME }}-$ENVIRONMENT" >> $GITHUB_ENV
 
       - name: Setup Skaffold
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           wget https://storage.googleapis.com/skaffold/releases/${VERSION}/${BINARY} -O ./skaffold
           chmod +x ./skaffold
         env:
-          VERSION: v2.1.0
+          VERSION: v2.6.0
           BINARY: skaffold-linux-amd64
 
       - name: Deploy
-        if: ${{ !startsWith(github.ref, 'refs/heads/feature/') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           IMAGE=$(yq e '.services.prod.image' docker-compose.yml | cut -f1 -d":")
-          ./skaffold deploy --images $IMAGE:$VERSION
+          SKAFFOLD_PROFILE=$([ "$CLASSIFICATION" == "feature" ] && echo "dev" || echo "$CLASSIFICATION")
+
+          ./skaffold deploy --images $IMAGE:$VERSION --profile $SKAFFOLD_PROFILE
 
           if [ -n "$POD_SELECTOR" ]; then
             kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
@@ -306,7 +314,7 @@ jobs:
         env:
           POD_SELECTOR: ${{ env.POD_SELECTOR }}
           FEATURE_TAG: -${{ env.VERSION }}
-          NAMESPACE: instance-manager-${{ env.ENVIRONMENT }}
+          NAMESPACE: instance-manager-${{ env.CLASSIFICATION }}
 
           KUBECONFIG: ${{ env.KUBECONFIG }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
