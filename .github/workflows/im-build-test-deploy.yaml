@@ -101,12 +101,17 @@ jobs:
         run: |
           # convert to lower case
           HEAD_BRANCH_LOWERCASE=${GITHUB_HEAD_REF,,}
-          # substitute all forward slashes "/" with hyphens "-"
-          HEAD_BRANCH_LOWERCASE_NO_SLASHES=${HEAD_BRANCH_LOWERCASE//\//-}
 
-          echo "ENVIRONMENT=$HEAD_BRANCH_LOWERCASE_NO_SLASHES" >> $GITHUB_ENV
+          # substitute all non-alphanumeric chars with hyphens "-"
+          HEAD_BRANCH_LOWERCASE_NO_NONALPHANUMERIC=${HEAD_BRANCH_LOWERCASE//[^[:alnum:]]/-}
+
+          # trim to 25 chars, in order to fit into the 53 char Helm release name limit
+          # the rest of the chars up to the limit are saved for the static part of the release names
+          SANITIZED_HEAD_BRANCH=${HEAD_BRANCH_LOWERCASE_NO_NONALPHANUMERIC::25}
+
+          echo "ENVIRONMENT=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
-          echo "SANITIZED_HEAD_BRANCH=$HEAD_BRANCH_LOWERCASE_NO_SLASHES" >> $GITHUB_ENV
+          echo "SANITIZED_HEAD_BRANCH=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
 
       - name: Set hostnames based on environment
         run: |
