@@ -40,6 +40,9 @@ on:
       KUBECONFIG:
         required: true
         description: Kubernetes Configuration
+      SLACK_WEBHOOK:
+        required: true
+        description: Slack Webhook
 
 jobs:
   build:
