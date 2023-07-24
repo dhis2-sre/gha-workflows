@@ -328,6 +328,31 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      - name: Add deployed environment URL as comment
+        uses: actions/github-script@v6
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
+        with:
+          script: |
+            let app_url
+
+            switch (context.repo.repo) {
+              case 'im-manager':
+                app_url = `https://${{ env.API_HOSTNAME }}`
+                break
+              case 'im-web-client':
+                app_url = `https://${{ env.UI_HOSTNAME }}`
+                break
+              default:
+                return
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `App deployed to ${app_url}`
+            })
+
   send-slack-message:
     runs-on: ubuntu-latest
     if: always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master'
