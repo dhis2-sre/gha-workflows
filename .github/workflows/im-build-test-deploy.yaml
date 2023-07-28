@@ -330,7 +330,7 @@ jobs:
 
       - name: Add deployed environment URL as comment
         uses: actions/github-script@v6
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
         with:
           script: |
             let app_url
