@@ -119,8 +119,20 @@ jobs:
       - name: Set hostnames based on environment
         run: |
           echo "API_HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
-          echo "API_URL=https://api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
           echo "UI_HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
+
+      - name: Set API_URL for im-web-client
+        if: github.repository == 'dhis2-sre/im-web-client'
+        run: |
+          # default to dev environment
+          echo "API_URL=https://api.im.dev.test.c.dhis2.org" >> $GITHUB_ENV
+
+          # use matching environment branch if it exists
+          MATCHING_API_URL=https://api.im.$ENVIRONMENT.test.c.dhis2.org
+          HEALTH_STATUS=$(curl -sSL $MATCHING_API_URL/health | jq -r '.status')
+          if [[ "$HEALTH_STATUS" == "UP" ]]; then
+            echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
+          fi
 
       - name: Environment
         run: env
