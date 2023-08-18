@@ -129,8 +129,7 @@ jobs:
 
           # use matching environment branch if it exists
           MATCHING_API_URL=https://api.im.$ENVIRONMENT.test.c.dhis2.org
-          HEALTH_STATUS=$(curl -sSL $MATCHING_API_URL/health | jq -r '.status')
-          if [[ "$HEALTH_STATUS" == "UP" ]]; then
+          if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
 
