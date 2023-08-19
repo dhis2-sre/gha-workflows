@@ -120,6 +120,7 @@ jobs:
         run: |
           echo "API_HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
           echo "UI_HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
+          echo "UI_HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> .env
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
