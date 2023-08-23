@@ -73,10 +73,10 @@ jobs:
           sed -i -e "s#AWS_ACCESS_KEY_ID=<aws-access-key-id>#AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID#g" .env
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
-          sed -i -e "s#HOSTNAME=api.im.\$ENVIRONMENT.test.c.dhis2.org#HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
           cat .env | sed /^#/d >> $GITHUB_ENV
         env:
+          #TODO Remove sops arn key
           SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -113,18 +113,23 @@ jobs:
 
       - name: Set hostnames based on environment
         run: |
-          echo "API_HOSTNAME=api.im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
-          echo "UI_HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> $GITHUB_ENV
-          echo "UI_HOSTNAME=im.$ENVIRONMENT.test.c.dhis2.org" >> .env
+          BASE_HOSTNAME="test.c.dhis2.org"
+          if [[ "$ENVIRONMENT" == "prod" ]]; then
+            echo "API_HOSTNAME=api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=im.$BASE_HOSTNAME" >> $GITHUB_ENV
+          else
+            echo "API_HOSTNAME=$ENVIRONMENT.api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=$ENVIRONMENT.im.$BASE_HOSTNAME" >> $GITHUB_ENV
+          fi
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
         run: |
           # default to dev environment
-          echo "API_URL=https://api.im.dev.test.c.dhis2.org" >> $GITHUB_ENV
+          echo "API_URL=https://dev.api.im.test.c.dhis2.org" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
-          MATCHING_API_URL=https://api.im.$ENVIRONMENT.test.c.dhis2.org
+          MATCHING_API_URL=https://$ENVIRONMENT.api.im.test.c.dhis2.org
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
