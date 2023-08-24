@@ -76,7 +76,6 @@ jobs:
           echo "AWS_REGION=$AWS_REGION" >> .env
           cat .env | sed /^#/d >> $GITHUB_ENV
         env:
-          #TODO Remove sops arn key
           SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -113,7 +112,9 @@ jobs:
 
       - name: Set hostnames based on environment
         run: |
-          BASE_HOSTNAME="test.c.dhis2.org"
+          BASE_HOSTNAME="c.dhis2.org"
+          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+
           if [[ "$ENVIRONMENT" == "prod" ]]; then
             echo "API_HOSTNAME=api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=im.$BASE_HOSTNAME" >> $GITHUB_ENV
@@ -126,10 +127,10 @@ jobs:
         if: github.repository == 'dhis2-sre/im-web-client'
         run: |
           # default to dev environment
-          echo "API_URL=https://dev.api.im.test.c.dhis2.org" >> $GITHUB_ENV
+          echo "API_URL=https://dev.api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
-          MATCHING_API_URL=https://$ENVIRONMENT.api.im.test.c.dhis2.org
+          MATCHING_API_URL=https://$ENVIRONMENT.api.im.$BASE_HOSTNAME
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
