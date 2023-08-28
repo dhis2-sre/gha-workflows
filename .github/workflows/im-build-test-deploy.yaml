@@ -112,25 +112,25 @@ jobs:
 
       - name: Set hostnames based on environment
         run: |
-          BASE_HOSTNAME="c.dhis2.org"
+          BASE_HOSTNAME="im.dhis2.org"
           echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
 
           if [[ "$ENVIRONMENT" == "prod" ]]; then
-            echo "API_HOSTNAME=api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_HOSTNAME=im.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
           else
-            echo "API_HOSTNAME=$ENVIRONMENT.api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_HOSTNAME=$ENVIRONMENT.im.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
         run: |
           # default to dev environment
-          echo "API_URL=https://dev.api.im.$BASE_HOSTNAME" >> $GITHUB_ENV
+          echo "API_URL=https://dev.api.$BASE_HOSTNAME" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
-          MATCHING_API_URL=https://$ENVIRONMENT.api.im.$BASE_HOSTNAME
+          MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
