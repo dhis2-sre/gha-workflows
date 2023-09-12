@@ -66,6 +66,22 @@ jobs:
       - name: Run pre-commit checks
         run: make check
 
+      - name: Install helm/helmfile/sops
+        uses: alexellis/arkade-get@master
+        with:
+          helm: v3.12.3
+          helmfile: v0.156.0
+          sops: v3.7.3
+
+      # im-manager expects helmfile/helm to be in /usr/bin
+      - name: Move CLIs to /usr/bin
+        run: |
+          sudo mv $HOME/.arkade/bin/* /usr/bin/
+
+      - name: Setup helm secrets plugin
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
+        run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
+
       - name: Create dotenv from example
         run: |
           cp .env.example .env
@@ -287,14 +303,6 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Setup Sops
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
-        uses: mdgreenwald/mozilla-sops-action@v1.4.1
-
-      - name: Setup helm secrets plugin
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
-        run: helm plugin install https://github.com/jkroepke/helm-secrets --version v3.8.3
 
       - name: Lint Helm
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
