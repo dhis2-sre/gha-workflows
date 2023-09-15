@@ -134,9 +134,11 @@ jobs:
           if [[ "$ENVIRONMENT" == "prod" ]]; then
             echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
           else
             echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
       - name: Set API_URL for im-web-client
@@ -146,7 +148,6 @@ jobs:
           echo "API_URL=https://dev.api.$BASE_HOSTNAME" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
-          MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
