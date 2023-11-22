@@ -16,12 +16,24 @@ jobs:
       - name: Fetch metadata on dependabot PR
         id: metadata
         uses: dependabot/fetch-metadata@v1.6.0
+
+      - name: Wait for build and tests
+        # Using fork of the upstream https://github.com/lewagon/wait-on-check-action,
+        # see https://github.com/lewagon/wait-on-check-action/issues/85 for more info.
+        uses: t3chguy/wait-on-check-action@master
+        with:
+          ref: ${{ github.head_ref }}
+          check-name: 'build'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          allowed-conclusions: success
+
       - name: Approve dependabot PR
         if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'}}
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
       - name: Enable auto-merge for dependabot PR
         if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'}}
         run: gh pr merge --auto --squash "$PR_URL"
