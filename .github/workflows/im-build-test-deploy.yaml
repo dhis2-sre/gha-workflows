@@ -133,11 +133,15 @@ jobs:
 
           if [[ "$ENVIRONMENT" == "prod" ]]; then
             echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
           else
             echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
