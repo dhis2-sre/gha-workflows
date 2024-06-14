@@ -156,9 +156,6 @@ jobs:
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
 
-      - name: Environment
-        run: env
-
       - name: Create RSA keypair
         run: |
           if make keys; then
