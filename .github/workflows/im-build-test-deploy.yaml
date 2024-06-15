@@ -204,9 +204,9 @@ jobs:
       - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }} returns 200
         if: ${{ env.hasPort }}
         run: |
-          docker ps
+          docker ps --all
           docker compose logs prod
-          curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
+          timeout 1m bash -c 'until curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}; do sleep 2; done'
 
       - name: Confirm process isn't running as root
         run: |
