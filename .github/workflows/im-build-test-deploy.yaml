@@ -186,27 +186,22 @@ jobs:
       - name: Smoke test image
         run: |
           make smoke-test tag=$VERSION
-
-          hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
-          if [ -n "$hasPort" ]; then
-            echo "hasPort: $hasPort"
-            echo "hasPort=$hasPort" >> $GITHUB_ENV
-          else
-            echo "No port found!"
-          fi
-
-          sleep 5
-          docker ps
-          docker compose logs prod
         env:
           GIN_MODE: debug
 
       - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }} returns 200
-        if: ${{ env.hasPort }}
+        id: healthcheck
         run: |
-          docker ps
-          docker compose logs prod
-          curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
+          timeout 1m bash -c 'until curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}; do sleep 2; done'
+
+      - name: Debug failed healthcheck
+        if: always() && (steps.healthcheck.outcome == 'failure')
+        run: |
+            docker ps --all
+            echo "docker compose logs prod"
+            docker compose logs prod
+            echo "Healthcheck after smoke test failed"
+            exit 1
 
       - name: Confirm process isn't running as root
         run: |
@@ -225,8 +220,8 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
-#      - name: End smoke test
-#        run: make clean
+      - name: End smoke test
+        run: make clean
 
       - name: Run unit and integration tests
         run: make test
