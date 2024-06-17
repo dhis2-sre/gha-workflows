@@ -190,18 +190,18 @@ jobs:
           GIN_MODE: debug
 
       - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }} returns 200
+        id: healthcheck
         run: |
-          (timeout 1m bash -c 'until curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}; do sleep 2; done')
-          exit_code=$?
-          if [ $exit_code -ne 0 ]; then
-            echo "Healthcheck failed with exit code $exit_code"
+          timeout 1m bash -c 'until curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}; do sleep 2; done'
+
+      - name: Debug failed healthcheck
+        if: always() && (steps.healthcheck.outcome == 'failure')
+        run: |
             docker ps --all
+            echo "docker compose logs prod"
             docker compose logs prod
-            exit $exit_code
-          else
-            echo "Healthcheck succeeded"
-            exit 0
-          fi
+            echo "Healthcheck after smoke test failed"
+            exit 1
 
       - name: Confirm process isn't running as root
         run: |
