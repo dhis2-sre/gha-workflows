@@ -122,6 +122,9 @@ jobs:
           # the rest of the chars up to the limit are saved for the static part of the release names
           SANITIZED_HEAD_BRANCH=${HEAD_BRANCH_LOWERCASE_NO_NONALPHANUMERIC::25}
 
+          # trim last "-" if there is one
+          SANITIZED_HEAD_BRANCH=$(echo $SANITIZED_HEAD_BRANCH | sed 's/\-$//')
+
           echo "ENVIRONMENT=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
           echo "SANITIZED_HEAD_BRANCH=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
