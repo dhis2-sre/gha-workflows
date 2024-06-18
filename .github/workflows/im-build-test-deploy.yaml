@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4.7.1
+      - uses: actions/setup-python@v4.8.0
         with:
           python-version: '3.x'
 
@@ -136,11 +136,15 @@ jobs:
 
           if [[ "$ENVIRONMENT" == "prod" ]]; then
             echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
           else
             echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
@@ -154,9 +158,6 @@ jobs:
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
-
-      - name: Environment
-        run: env
 
       - name: Create RSA keypair
         run: |
@@ -188,27 +189,22 @@ jobs:
       - name: Smoke test image
         run: |
           make smoke-test tag=$VERSION
-
-          hasPort=$(docker inspect $(docker compose ps -q prod) | jq -r '.[0].HostConfig.PortBindings."8080/tcp" | .[0].HostPort' | tr -d null)
-          if [ -n "$hasPort" ]; then
-            echo "hasPort: $hasPort"
-            echo "hasPort=$hasPort" >> $GITHUB_ENV
-          else
-            echo "No port found!"
-          fi
-
-          sleep 5
-          docker ps
-          docker compose logs prod
         env:
           GIN_MODE: debug
 
       - name: Confirm ${{ inputs.HEALTH_CHECK_ENDPOINT }} returns 200
-        if: ${{ env.hasPort }}
+        id: healthcheck
         run: |
-          docker ps
-          docker compose logs prod
-          curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}
+          timeout 1m bash -c 'until curl --silent --fail localhost:8080${{ inputs.HEALTH_CHECK_ENDPOINT }}; do sleep 2; done'
+
+      - name: Debug failed healthcheck
+        if: always() && (steps.healthcheck.outcome == 'failure')
+        run: |
+            docker ps --all
+            echo "docker compose logs prod"
+            docker compose logs prod
+            echo "Healthcheck after smoke test failed"
+            exit 1
 
       - name: Confirm process isn't running as root
         run: |
@@ -227,8 +223,8 @@ jobs:
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
-#      - name: End smoke test
-#        run: make clean
+      - name: End smoke test
+        run: make clean
 
       - name: Run unit and integration tests
         run: make test
@@ -353,30 +349,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Add deployed environment URL as comment
-        uses: actions/github-script@v6
+      - name: Comment deployed environment URL
+        uses: actions-cool/maintain-one-comment@v3
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          # TODO update once https://github.com/actions/runner/issues/409 is resolved
+          APP_URL: "https://${{ contains(github.repository, 'im-web-client') && env.UI_HOSTNAME || env.API_HOSTNAME }}"
         with:
-          script: |
-            let app_url
-
-            switch (context.repo.repo) {
-              case 'im-manager':
-                app_url = `https://${{ env.API_HOSTNAME }}`
-                break
-              case 'im-web-client':
-                app_url = `https://${{ env.UI_HOSTNAME }}`
-                break
-              default:
-                return
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `App deployed to ${app_url}`
-            })
+          body: "App deployed to ${{ env.APP_URL }}"
 
   send-slack-message:
     runs-on: ubuntu-latest
