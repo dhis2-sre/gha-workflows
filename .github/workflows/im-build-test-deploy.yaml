@@ -333,7 +333,7 @@ jobs:
           IMAGE=$(yq e '.services.prod.image' docker-compose.yml | cut -f1 -d":")
           SKAFFOLD_PROFILE=$([ "$CLASSIFICATION" == "feature" ] && echo "dev" || echo "$CLASSIFICATION")
 
-          ./skaffold deploy --verbosity debug --images $IMAGE:$VERSION --profile $SKAFFOLD_PROFILE
+          ./skaffold deploy --images $IMAGE:$VERSION --profile $SKAFFOLD_PROFILE
 
           if [ -n "$POD_SELECTOR" ]; then
             kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
