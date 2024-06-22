@@ -21,11 +21,6 @@ on:
         required: false
         type: string
         default: /health
-      DEPLOY_ENVIRONMENT:
-        description: Deploy the environment
-        required: false
-        type: boolean
-        default: false
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -52,7 +47,7 @@ on:
 jobs:
   build:
     env:
-      DEPLOY_ENVIRONMENT: ${{ github.event.inputs.DEPLOY_ENVIRONMENT || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy')) }}
+      DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy')) }}
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
@@ -338,7 +333,7 @@ jobs:
           IMAGE=$(yq e '.services.prod.image' docker-compose.yml | cut -f1 -d":")
           SKAFFOLD_PROFILE=$([ "$CLASSIFICATION" == "feature" ] && echo "dev" || echo "$CLASSIFICATION")
 
-          ./skaffold deploy --verbosity debug --images $IMAGE:$VERSION --profile $SKAFFOLD_PROFILE
+          ./skaffold deploy --images $IMAGE:$VERSION --profile $SKAFFOLD_PROFILE
 
           if [ -n "$POD_SELECTOR" ]; then
             kubectl delete pod --namespace $NAMESPACE --selector=$POD_SELECTOR
