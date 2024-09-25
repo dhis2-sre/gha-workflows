@@ -209,7 +209,7 @@ jobs:
       - name: Confirm process exited with code 0
         if: "${{ inputs.HEALTH_CHECK_ENDPOINT == '' }}"
         run: |
-          exit_code=$(docker inspect $(docker compose ps --quiet prod) | jq -r '.[0].State.ExitCode'); echo "Service 'prod' exited with code $exit_code"; [ "$exit_code" -eq 0 ]
+          exit_code=$(docker inspect $(docker compose ps --quiet -a prod) | jq -r '.[0].State.ExitCode'); echo "Service 'prod' exited with code $exit_code"; [ "$exit_code" -eq 0 ]
 
       - name: Confirm process isn't running as root
         run: |
