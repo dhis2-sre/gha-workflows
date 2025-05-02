@@ -288,13 +288,6 @@ jobs:
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: aws-iam-authenticator version
 
-      - name: Pin kubectl to version v1.23.6 (https://github.com/aws/aws-cli/issues/6920)
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
-        run: |
-          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.6/bin/linux/amd64/kubectl
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
-
       - name: Configure kubectl
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
