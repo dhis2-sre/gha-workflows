@@ -182,6 +182,14 @@ jobs:
           echo "VERSION=$VERSION"
 
 # TODO: Split here... "Build"
+      - name: Pin Docker Compose to version 2.37.1 (delete this step once we're above version 2.36.0 by default)
+        run: |
+          docker compose version
+          sudo rm -f /usr/local/bin/docker-compose
+          mkdir -p ~/.docker/cli-plugins/
+          curl -SL https://github.com/docker/compose/releases/download/v2.37.1/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+
       - name: Build image
         run: make docker-image tag=$VERSION
 
