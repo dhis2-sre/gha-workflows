@@ -364,6 +364,10 @@ jobs:
         with:
           body: "App deployed to ${{ env.APP_URL }}"
 
+      - name: GitHub Release
+        if: ${{ env.ENVIRONMENT == 'prod' }}
+        run: gh release create ${{ env.VERSION }} --generate-notes
+
   send-slack-message:
     runs-on: ubuntu-latest
     if: always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master'
