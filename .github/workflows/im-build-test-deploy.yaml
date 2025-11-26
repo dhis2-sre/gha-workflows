@@ -131,16 +131,22 @@ jobs:
 
       - name: Set hostnames based on environment
         run: |
-          BASE_HOSTNAME="im.dhis2.org"
-          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
-
-          if [[ "$ENVIRONMENT" == "prod" ]]; then
+          if [[ "$CLASSIFICATION" == "prod" ]]; then
+            BASE_HOSTNAME="im.dhis2.org"
             echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-          else
+          elif [[ "$CLASSIFICATION" == "dev" ]]; then
+            BASE_HOSTNAME="im-dev.dhis2.org"
+            echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
+          elif [ "$CLASSIFICATION" = "feature" ]; then
+            BASE_HOSTNAME="im-feat.dhis2.org"
             echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
@@ -148,11 +154,13 @@ jobs:
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
+          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
         run: |
           # default to dev environment
-          echo "API_URL=https://dev.api.$BASE_HOSTNAME" >> $GITHUB_ENV
+          echo "API_URL=https://api.im-dev.dhis2.org" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
