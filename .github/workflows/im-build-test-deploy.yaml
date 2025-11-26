@@ -240,7 +240,58 @@ jobs:
         run: make clean
 
       - name: Run unit and integration tests
-        run: make test
+        run: |
+          echo "Starting tests in background..."
+          make test &
+          TEST_PID=$!
+
+          echo "Tests running with PID: $TEST_PID"
+          echo "Monitoring Docker containers for 5 minutes..."
+
+          # Monitor for 5 minutes (300 seconds)
+          END_TIME=$((SECONDS + 300))
+
+          while [ $SECONDS -lt $END_TIME ]; do
+            REMAINING=$((END_TIME - SECONDS))
+            echo ""
+            echo "=== Time remaining: ${REMAINING}s ==="
+            echo ""
+
+            echo "--- Docker containers ---"
+            docker ps --all
+            echo ""
+
+            echo "--- Container logs (last 20 lines each) ---"
+            for container in $(docker ps --format '{{.Names}}'); do
+              echo ">> Logs for: $container"
+              docker logs --tail 20 "$container" 2>&1 || echo "Could not get logs for $container"
+              echo ""
+            done
+
+            # Check if tests are still running
+            if ! kill -0 $TEST_PID 2>/dev/null; then
+              echo "Tests have completed!"
+              break
+            fi
+
+            sleep 30
+          done
+
+          echo ""
+          echo "=== Final Docker state ==="
+          docker ps --all
+          echo ""
+
+          echo "=== Full logs for all containers ==="
+          docker compose logs
+          echo ""
+
+          # Wait for tests to complete and get exit code
+          wait $TEST_PID
+          TEST_EXIT_CODE=$?
+
+          echo "Tests exited with code: $TEST_EXIT_CODE"
+          exit $TEST_EXIT_CODE
         env:
           IMAGE_TAG: ${{ env.VERSION }}
 
