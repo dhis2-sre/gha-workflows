@@ -257,7 +257,7 @@ jobs:
             echo "=== Time remaining: ${REMAINING}s ==="
             echo ""
   
-              echo "--- Docker containers ---"
+            echo "--- Docker containers ---"
             docker ps --all
             echo ""
   
