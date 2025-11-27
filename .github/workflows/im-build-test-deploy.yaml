@@ -261,13 +261,16 @@ jobs:
             docker ps --all
             echo ""
   
-              # Find the rancher container
-            RANCHER_CONTAINER=$(docker ps --format '{{.Images}}' | grep -E 'rancher/' || true)
+              # Find the rancher container by image name
+            RANCHER_CONTAINER=$(docker ps --all --format '{{.Names}}' --filter "ancestor=rancher/" || true)
+            if [ -z "$RANCHER_CONTAINER" ]; then
+              RANCHER_CONTAINER=$(docker ps --all --format '{{.ID}}\t{{.Image}}\t{{.Names}}' | grep 'rancher/' | awk '{print $3}' || true)
+            fi
   
             if [ -n "$RANCHER_CONTAINER" ]; then
-              echo "--- Rancher container logs (last 30 lines) ---"
-              docker logs --tail 30 "$RANCHER_CONTAINER" 2>&1 || echo "Could not get logs for $RANCHER_CONTAINER"
-              echo ""
+            echo "--- Rancher container logs (last 30 lines) ---"
+            docker logs --tail 30 "$RANCHER_CONTAINER" 2>&1 || echo "Could not get logs for $RANCHER_CONTAINER"
+            echo ""
     
               echo "--- Checking k3s.yaml file ---"
               docker exec "$RANCHER_CONTAINER" ls -l /etc/rancher/k3s/k3s.yaml 2>&1 || echo "Could not check k3s.yaml in $RANCHER_CONTAINER"
@@ -293,7 +296,7 @@ jobs:
           echo ""
 
           # Get rancher container one more time for final logs
-          RANCHER_CONTAINER=$(docker ps --all --format '{{.Names}}' | grep -E 'rancher/' || true)
+          RANCHER_CONTAINER=$(docker ps --all --format '{{.ID}}\t{{.Image}}\t{{.Names}}' | grep 'rancher/' | awk '{print $3}' || true)
           if [ -n "$RANCHER_CONTAINER" ]; then
             echo "=== Full rancher container logs ==="
             docker logs "$RANCHER_CONTAINER" 2>&1 || echo "Could not get final logs"
