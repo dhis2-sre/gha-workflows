@@ -248,33 +248,42 @@ jobs:
           echo "Tests running with PID: $TEST_PID"
           echo "Monitoring Docker containers for 5 minutes..."
 
-          # Monitor for 5 minutes (300 seconds)
-          END_TIME=$((SECONDS + 300))
+          # Monitor for 5 minutes (600 seconds)
+          END_TIME=$((SECONDS + 600))
 
           while [ $SECONDS -lt $END_TIME ]; do
             REMAINING=$((END_TIME - SECONDS))
             echo ""
             echo "=== Time remaining: ${REMAINING}s ==="
             echo ""
-
-            echo "--- Docker containers ---"
+  
+              echo "--- Docker containers ---"
             docker ps --all
             echo ""
-
-            echo "--- Container logs (last 20 lines each) ---"
-            for container in $(docker ps --format '{{.Names}}'); do
-              echo ">> Logs for: $container"
-              docker logs --tail 20 "$container" 2>&1 || echo "Could not get logs for $container"
+  
+              # Find the rancher container
+            RANCHER_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'rancher/' || true)
+  
+              if [ -n "$RANCHER_CONTAINER" ]; then
+              echo "--- Rancher container logs (last 30 lines) ---"
+              docker logs --tail 30 "$RANCHER_CONTAINER" 2>&1 || echo "Could not get logs for $RANCHER_CONTAINER"
               echo ""
-            done
-
-            # Check if tests are still running
+    
+                  echo "--- Checking k3s.yaml file ---"
+              docker exec "$RANCHER_CONTAINER" ls -l /etc/rancher/k3s/k3s.yaml 2>&1 || echo "Could not check k3s.yaml in $RANCHER_CONTAINER"
+              echo ""
+            else
+              echo "No rancher container found"
+              echo ""
+            fi
+  
+              # Check if tests are still running
             if ! kill -0 $TEST_PID 2>/dev/null; then
               echo "Tests have completed!"
               break
             fi
-
-            sleep 30
+  
+              sleep 30
           done
 
           echo ""
@@ -282,9 +291,13 @@ jobs:
           docker ps --all
           echo ""
 
-          echo "=== Full logs for all containers ==="
-          docker compose logs
-          echo ""
+          # Get rancher container one more time for final logs
+          RANCHER_CONTAINER=$(docker ps --all --format '{{.Names}}' | grep -E 'rancher/' || true)
+          if [ -n "$RANCHER_CONTAINER" ]; then
+            echo "=== Full rancher container logs ==="
+            docker logs "$RANCHER_CONTAINER" 2>&1 || echo "Could not get final logs"
+            echo ""
+          fi
 
           # Wait for tests to complete and get exit code
           wait $TEST_PID
