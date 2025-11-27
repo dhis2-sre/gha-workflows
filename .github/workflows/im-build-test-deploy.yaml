@@ -262,9 +262,9 @@ jobs:
             echo ""
   
               # Find the rancher container
-            RANCHER_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'rancher/' || true)
+            RANCHER_CONTAINER=$(docker ps --format '{{.Images}}' | grep -E 'rancher/' || true)
   
-              if [ -n "$RANCHER_CONTAINER" ]; then
+            if [ -n "$RANCHER_CONTAINER" ]; then
               echo "--- Rancher container logs (last 30 lines) ---"
               docker logs --tail 30 "$RANCHER_CONTAINER" 2>&1 || echo "Could not get logs for $RANCHER_CONTAINER"
               echo ""
