@@ -216,9 +216,9 @@ jobs:
       - name: Debug failed healthcheck
         if: always() && (steps.healthcheck.outcome == 'failure')
         run: |
-            docker ps --all
-            echo "docker compose logs prod"
-            docker compose logs prod
+            docker compose ps --all
+            echo "docker compose --profile prod logs prod"
+            docker compose --profile prod logs prod
             echo "Healthcheck after smoke test failed"
             exit 1
 
