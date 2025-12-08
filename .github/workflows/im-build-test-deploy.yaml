@@ -154,7 +154,7 @@ jobs:
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
-          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+          echo "HOSTNAME=$API_HOSTNAME" >> $GITHUB_ENV
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
