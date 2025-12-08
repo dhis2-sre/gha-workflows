@@ -154,7 +154,7 @@ jobs:
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
-          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+          echo "HOSTNAME=$API_HOSTNAME" >> $GITHUB_ENV
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
@@ -216,9 +216,9 @@ jobs:
       - name: Debug failed healthcheck
         if: always() && (steps.healthcheck.outcome == 'failure')
         run: |
-            docker ps --all
-            echo "docker compose logs prod"
-            docker compose logs prod
+            docker compose ps --all
+            echo "docker compose --profile prod logs prod"
+            docker compose --profile prod logs prod
             echo "Healthcheck after smoke test failed"
             exit 1
 
