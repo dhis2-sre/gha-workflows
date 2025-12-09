@@ -90,7 +90,6 @@ jobs:
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
           sed -i -e "s#DOCKER_INSTANCE_HOST=dev:8080#DOCKER_INSTANCE_HOST=prod:8080#g" .env
           echo "AWS_REGION=$AWS_REGION" >> .env
-          cat .env | sed /^#/d >> $GITHUB_ENV
         env:
           SOPS_KMS_ARN: ${{ secrets.SOPS_KMS_ARN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -129,32 +128,15 @@ jobs:
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
           echo "SANITIZED_HEAD_BRANCH=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
 
-      - name: Set hostnames based on environment
+      - name: Install direnv
         run: |
-          if [[ "$CLASSIFICATION" == "prod" ]]; then
-            BASE_HOSTNAME="im.dhis2.org"
-            echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-          elif [[ "$CLASSIFICATION" == "dev" ]]; then
-            BASE_HOSTNAME="im-dev.dhis2.org"
-            echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-          elif [ "$CLASSIFICATION" = "feature" ]; then
-            BASE_HOSTNAME="im-feat.dhis2.org"
-            echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "UI_URL=https://$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
-            echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
-          fi
+          curl -sfL https://direnv.net/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-          echo "HOSTNAME=$API_HOSTNAME" >> $GITHUB_ENV
+      - name: Load environment variables from .envrc
+        run: |
+          direnv allow .
+          direnv export gha >> "$GITHUB_ENV"
 
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
@@ -163,6 +145,7 @@ jobs:
           echo "API_URL=https://api.im-dev.dhis2.org" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
+          MATCHING_API_URL="https://$API_HOSTNAME"
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
             echo "API_URL=$MATCHING_API_URL" >> $GITHUB_ENV
           fi
@@ -367,8 +350,7 @@ jobs:
         uses: actions-cool/maintain-one-comment@v3
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
         env:
-          # TODO update once https://github.com/actions/runner/issues/409 is resolved
-          APP_URL: "https://${{ contains(github.repository, 'im-web-client') && env.UI_HOSTNAME || env.API_HOSTNAME }}"
+          APP_URL: ${{ contains(github.repository, 'im-web-client') && env.UI_URL || format('https://{0}', env.API_HOSTNAME) }}
         with:
           body: "App deployed to ${{ env.APP_URL }}"
 
