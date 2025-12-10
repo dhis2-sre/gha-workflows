@@ -50,13 +50,13 @@ jobs:
       DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy')) }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
-      - uses: actions/setup-go@v5.5.0
+      - uses: actions/setup-go@v6.1.0
         with:
           go-version: 1.24.3
 
@@ -131,16 +131,22 @@ jobs:
 
       - name: Set hostnames based on environment
         run: |
-          BASE_HOSTNAME="im.dhis2.org"
-          echo "BASE_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
-
-          if [[ "$ENVIRONMENT" == "prod" ]]; then
+          if [[ "$CLASSIFICATION" == "prod" ]]; then
+            BASE_HOSTNAME="im.dhis2.org"
             echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
-          else
+          elif [[ "$CLASSIFICATION" == "dev" ]]; then
+            BASE_HOSTNAME="im-dev.dhis2.org"
+            echo "API_HOSTNAME=api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_HOSTNAME=$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "UI_URL=https://$BASE_HOSTNAME" >> $GITHUB_ENV
+            echo "MATCHING_API_URL=https://api.$BASE_HOSTNAME" >> $GITHUB_ENV
+          elif [ "$CLASSIFICATION" = "feature" ]; then
+            BASE_HOSTNAME="im-feat.dhis2.org"
             echo "API_HOSTNAME=$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
             echo "UI_HOSTNAME=$ENVIRONMENT.$BASE_HOSTNAME" >> $GITHUB_ENV
@@ -148,11 +154,13 @@ jobs:
             echo "MATCHING_API_URL=https://$ENVIRONMENT.api.$BASE_HOSTNAME" >> $GITHUB_ENV
           fi
 
+          echo "HOSTNAME=$API_HOSTNAME" >> $GITHUB_ENV
+
       - name: Set API_URL for im-web-client
         if: github.repository == 'dhis2-sre/im-web-client'
         run: |
           # default to dev environment
-          echo "API_URL=https://dev.api.$BASE_HOSTNAME" >> $GITHUB_ENV
+          echo "API_URL=https://api.im-dev.dhis2.org" >> $GITHUB_ENV
 
           # use matching environment branch if it exists
           if [[ "$(curl -sSL -w %{http_code} -o /dev/null $MATCHING_API_URL/health)" == "200" ]]; then
@@ -208,9 +216,9 @@ jobs:
       - name: Debug failed healthcheck
         if: always() && (steps.healthcheck.outcome == 'failure')
         run: |
-            docker ps --all
-            echo "docker compose logs prod"
-            docker compose logs prod
+            docker compose ps --all
+            echo "docker compose --profile prod logs prod"
+            docker compose --profile prod logs prod
             echo "Healthcheck after smoke test failed"
             exit 1
 
@@ -363,6 +371,10 @@ jobs:
           APP_URL: "https://${{ contains(github.repository, 'im-web-client') && env.UI_HOSTNAME || env.API_HOSTNAME }}"
         with:
           body: "App deployed to ${{ env.APP_URL }}"
+
+      - name: GitHub Release
+        if: ${{ env.ENVIRONMENT == 'prod' }}
+        run: gh release create ${{ env.VERSION }} --generate-notes
 
   send-slack-message:
     runs-on: ubuntu-latest
