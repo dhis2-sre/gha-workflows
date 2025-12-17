@@ -82,6 +82,10 @@ jobs:
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' }}
         run: helm plugin install https://github.com/jkroepke/helm-secrets --version v4.6.5
 
+      # This fixes the K8s warning "Unschedulable, Message: 0/1 nodes are available: 1 node(s) had untolerated taint {node.kubernetes.io/disk-pressure: }. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+
       - name: Create dotenv from example
         run: |
           cp .env.example .env
