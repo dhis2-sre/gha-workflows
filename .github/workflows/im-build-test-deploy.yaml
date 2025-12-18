@@ -89,11 +89,6 @@ jobs:
       - name: Create dotenv from example
         run: |
           cp .env.example .env
-
-          # Prevent direnv from overriding CI-selected env vars later
-          sed -i -E '/^ENVIRONMENT=/d' .env
-          sed -i -E '/^CLASSIFICATION=/d' .env
-
           sed -i -e "s#SOPS_KMS_ARN=<kms-key-arn>#SOPS_KMS_ARN=$SOPS_KMS_ARN#g" .env
           sed -i -e "s#AWS_ACCESS_KEY_ID=<aws-access-key-id>#AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID#g" .env
           sed -i -e "s#AWS_SECRET_ACCESS_KEY=<aws-secret-access-key>#AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY#g" .env
@@ -136,6 +131,11 @@ jobs:
           echo "ENVIRONMENT=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
           echo "SANITIZED_HEAD_BRANCH=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
+
+      - name: Sync CI-selected ENVIRONMENT/CLASSIFICATION into .env
+        run: |
+          sed -i -E "s/^ENVIRONMENT=.*/ENVIRONMENT=${ENVIRONMENT}/" .env
+          sed -i -E "s/^CLASSIFICATION=.*/CLASSIFICATION=${CLASSIFICATION}/" .env
 
       - name: Install direnv
         run: |
