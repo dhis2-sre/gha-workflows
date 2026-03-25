@@ -365,6 +365,8 @@ jobs:
 
       - name: GitHub Release
         if: ${{ env.ENVIRONMENT == 'prod' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh release create ${{ env.VERSION }} --generate-notes
 
   send-slack-message:
