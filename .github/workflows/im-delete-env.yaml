@@ -48,7 +48,7 @@ jobs:
           echo "KUBECONFIG=$PWD/.kube/config" >> $GITHUB_ENV
 
       - name: Setup Sops
-        uses: mdgreenwald/mozilla-sops-action@v1.6.0
+        uses: mdgreenwald/mozilla-sops-action@v2.0.0
 
       - name: Setup helm secrets plugin
         run: helm plugin install https://github.com/jkroepke/helm-secrets --version v4.6.5
