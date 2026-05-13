@@ -87,6 +87,13 @@ jobs:
       # This fixes the K8s warning "Unschedulable, Message: 0/1 nodes are available: 1 node(s) had untolerated taint {node.kubernetes.io/disk-pressure: }. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
+        with:
+          android: true
+          dotnet: false
+          haskell: false
+          large-packages: false
+          docker-images: false
+          swap-storage: false
 
       - name: Create dotenv from example
         run: |
