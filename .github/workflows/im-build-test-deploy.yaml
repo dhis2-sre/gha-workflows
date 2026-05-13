@@ -56,9 +56,10 @@ jobs:
         with:
           python-version: '3.x'
 
-      - uses: actions/setup-go@v6.2.0
+      - uses: actions/setup-go@v6.4.0
         with:
-          go-version: 1.25.5
+          go-version: 1.26.3
+          cache: true
 
       - name: Install prerequisites
         run: make init
@@ -66,12 +67,13 @@ jobs:
       - name: Run pre-commit checks
         run: make check
 
-      - name: Install helm/helmfile/sops
+      - name: Install helm/helmfile/sops/direnv
         uses: alexellis/arkade-get@master
         with:
           helm: v3.12.3
           helmfile: v1.2.3
           sops: v3.7.3
+          direnv: v2.37.1
 
       # im-manager expects helmfile/helm to be in /usr/bin
       - name: Move CLIs to /usr/bin
@@ -137,11 +139,6 @@ jobs:
           sed -i -E "s/^ENVIRONMENT=.*/ENVIRONMENT=${ENVIRONMENT}/" .env
           sed -i -E "s/^CLASSIFICATION=.*/CLASSIFICATION=${CLASSIFICATION}/" .env
 
-      - name: Install direnv
-        run: |
-          curl -sfL https://direnv.net/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Load environment variables from .envrc
         run: |
           direnv allow .
@@ -182,16 +179,16 @@ jobs:
           echo "VERSION=$VERSION"
 
 # TODO: Split here... "Build"
-      - name: Pin Docker Compose to version 2.37.1 (delete this step once we're above version 2.36.0 by default)
-        run: |
-          docker compose version
-          sudo rm -f /usr/local/bin/docker-compose
-          mkdir -p ~/.docker/cli-plugins/
-          curl -SL https://github.com/docker/compose/releases/download/v2.37.1/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
-          chmod +x ~/.docker/cli-plugins/docker-compose
+      - uses: docker/setup-buildx-action@v3
 
       - name: Build image
-        run: make docker-image tag=$VERSION
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          tags: dhis2/im-manager:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Smoke test image
         run: |
@@ -251,9 +248,11 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push image
-        run: |
-          docker images
-          make push-docker-image tag=$VERSION
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: dhis2/im-manager:${{ env.VERSION }}
+          cache-from: type=gha
 
 # TODO: Split here... "Deploy"
       - name: Setup yq
