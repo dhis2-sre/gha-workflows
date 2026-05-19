@@ -366,7 +366,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Comment deployed environment URL
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
         env:
           APP_URL: ${{ contains(github.repository, 'im-web-client') && env.UI_URL || format('https://{0}', env.API_HOSTNAME) }}
