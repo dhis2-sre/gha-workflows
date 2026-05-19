@@ -362,12 +362,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Comment deployed environment URL
-        uses: actions-cool/maintain-one-comment@v3
+        uses: marocchino/sticky-pull-request-comment@v2
         if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
         env:
           APP_URL: ${{ contains(github.repository, 'im-web-client') && env.UI_URL || format('https://{0}', env.API_HOSTNAME) }}
         with:
-          body: "App deployed to ${{ env.APP_URL }}"
+          header: deployed-env-url
+          message: "App deployed to ${{ env.APP_URL }}"
 
       - name: GitHub Release
         if: ${{ env.ENVIRONMENT == 'prod' }}
