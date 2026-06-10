@@ -116,7 +116,7 @@ jobs:
           echo "CLASSIFICATION=dev" >> $GITHUB_ENV
 
       - name: "Environment: prod"
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.ref_type == 'tag'
         run: |
           echo "ENVIRONMENT=prod" >> $GITHUB_ENV
           echo "CLASSIFICATION=prod" >> $GITHUB_ENV
@@ -286,7 +286,7 @@ jobs:
       #          [ "$(git diff --exit-code $TARGET)" != "0" ]
 
       - name: Update chart version
-        if:  ${{ startsWith(github.ref, 'refs/tags/v') && env.DEPLOY_ENVIRONMENT == 'true' }}
+        if: ${{ github.ref_type == 'tag' && env.DEPLOY_ENVIRONMENT == 'true' }}
         run: |
           TARGET=helm/chart/Chart.yaml
           yq -i e ".version = \"${{ env.VERSION }}\"" $TARGET
@@ -367,7 +367,7 @@ jobs:
 
       - name: Comment deployed environment URL
         uses: marocchino/sticky-pull-request-comment@v3
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && github.ref_type != 'tag' }}
         env:
           APP_URL: ${{ contains(github.repository, 'im-web-client') && env.UI_URL || format('https://{0}', env.API_HOSTNAME) }}
         with:
