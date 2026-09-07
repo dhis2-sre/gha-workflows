@@ -1,0 +1,52 @@
+name: Feature environment name
+description: >-
+  Derives the im-vm feature environment name from a head branch. One implementation, because a
+  deploy that computes the name one way and a teardown that computes it another leaves an
+  environment running on a shared box for as long as nobody notices.
+
+inputs:
+  head-branch:
+    description: The head branch of the pull request the environment belongs to.
+    required: true
+
+outputs:
+  name:
+    description: The environment name, which is the label behind a feat- prefix.
+    value: ${{ steps.derive.outputs.name }}
+  label:
+    description: >-
+      The sanitized branch on its own. The hostnames are built from this, and it is also the image
+      tag the build pushes for a pull request.
+    value: ${{ steps.derive.outputs.label }}
+
+runs:
+  using: composite
+  steps:
+    - id: derive
+      shell: bash
+      env:
+        HEAD_BRANCH: ${{ inputs.head-branch }}
+      run: |
+        set -o errexit -o nounset -o pipefail
+
+        # Lowercase, non-alphanumerics to hyphens, 25 characters, no trailing hyphen. The same
+        # sanitisation the build applies to the image tag, so a pull request in im-manager and one
+        # in im-web-client on the same branch resolve to one environment.
+        lowercase=$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]')
+        label=${lowercase//[^[:alnum:]]/-}
+        label=${label::25}
+        label=${label%-}
+
+        # The same shape im-environment-ci enforces on the far end. Checked here so a branch that
+        # sanitizes to something unusable, all separators for instance, says so rather than arriving
+        # as a denied forced command. That check stays the control; this one is the error message.
+        if [[ ! $label =~ ^[a-z0-9]([a-z0-9-]{0,23}[a-z0-9])?$ ]]; then
+          echo "$HEAD_BRANCH sanitizes to '$label', which is not a usable environment label" >&2
+          exit 1
+        fi
+
+        # The prefix is what im-environment-ci checks to decide whether a deploy key may touch the
+        # name at all, so it is not decoration: without it a branch called prod would address the
+        # long lived environment. The hostnames drop it again.
+        echo "label=$label" >> "$GITHUB_OUTPUT"
+        echo "name=feat-$label" >> "$GITHUB_OUTPUT"
