@@ -12,6 +12,12 @@ on:
       KUBECONFIG:
         required: true
         description: Kubernetes Configuration
+      IM_VM_DEV_HOST:
+        required: false
+        description: The im-vm dev and feature server, if this repository deploys there
+      IM_VM_DEV_DEPLOY_KEY:
+        required: false
+        description: Its deploy key, which may destroy feature environments and nothing else
 
 jobs:
   delete-env:
@@ -70,3 +76,45 @@ jobs:
           KUBECONFIG: ${{ env.KUBECONFIG }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  # The same teardown on the Hetzner control plane. A separate job because it is a different system
+  # with a different credential, and it runs whether or not the one above did: a feature environment
+  # left behind holds a database, a Redis and a RabbitMQ on a box shared with dev.
+  delete-im-vm-env:
+    name: Delete the im-vm feature environment
+    runs-on: ubuntu-24.04
+    # A closed pull request has no environment either way, but unlabeled fires for every label, and
+    # only this one created anything.
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event.action == 'closed' || github.event.label.name == 'deploy')
+    steps:
+      - name: Destroy
+        env:
+          DEPLOY_KEY: ${{ secrets.IM_VM_DEV_DEPLOY_KEY }}
+          HOST: ${{ secrets.IM_VM_DEV_HOST }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+
+          if [ -z "$HOST" ]; then
+            echo "no im-vm server configured for this repository, nothing to tear down"
+            exit 0
+          fi
+
+          # Has to match im-deploy-im-vm.yaml exactly, or this tears down nothing and leaves the
+          # environment running: lowercase, non-alphanumerics to hyphens, 25 characters, no trailing
+          # hyphen.
+          lowercase=$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]')
+          label=${lowercase//[^[:alnum:]]/-}
+          label=${label::25}
+          label=${label%-}
+
+          install --mode=600 /dev/null deploy-key
+          printf '%s\n' "$DEPLOY_KEY" > deploy-key
+          ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            im@"$HOST" "down feat-$label"
+
+      - name: Forget the key
+        if: always()
+        run: rm --force deploy-key

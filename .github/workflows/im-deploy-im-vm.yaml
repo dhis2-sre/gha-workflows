@@ -1,0 +1,173 @@
+name: Deploy to im-vm
+
+# The Hetzner control plane in dhis2-sre/dhis2-infrastructure services/im-vm, which replaces the EKS
+# instance-cluster. Called once Build, test and deploy has pushed the image, because it deploys a tag
+# that has to exist, and works out that tag exactly as the build does: the sanitized head branch for
+# a pull request, latest for master, the tag itself for a release. A pull request gets an environment
+# only while it carries the deploy label, which is the label the EKS deploy uses too. Anything that
+# is none of those three deploys nothing.
+#
+# One implementation for im-manager and im-web-client. They differ only in which image they move, so
+# that is the single input: the other repository's tag is left as the sentinel im-environment reads
+# as "keep whatever the environment file already names".
+#
+# A feature environment is named after the head branch rather than the pull request number, so a
+# pull request in each repository on the same branch resolves to one environment and the client is
+# served by the API built from its own branch. The hostnames drop the feat- prefix, which is why the
+# environment name and the label are not the same string.
+#
+# The whole interface is a forced command over SSH. A deploy key can start an environment and, for
+# feature environments only, destroy one. It cannot open a shell, and it cannot stop or destroy a
+# long lived environment. The caller owns the trigger, so which builds reach this at all is the
+# caller's decision, not this workflow's.
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: Which image this repository deploys, manager or web-client.
+        required: true
+        type: string
+    secrets:
+      IM_VM_DEV_HOST:
+        required: true
+        description: The dev and feature server
+      IM_VM_DEV_DEPLOY_KEY:
+        required: true
+        description: Its deploy key, reachable by anything a pull request can trigger
+      IM_VM_PROD_HOST:
+        required: false
+        description: The prod server, needed only once releases deploy here
+      IM_VM_PROD_DEPLOY_KEY:
+        required: false
+        description: Its deploy key, which nothing a pull request can trigger may reach
+
+jobs:
+  deploy:
+    name: Deploy
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Work out what to deploy, where
+        id: target
+        env:
+          COMPONENT: ${{ inputs.component }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PULL_REQUESTS: ${{ toJSON(github.event.workflow_run.pull_requests) }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+
+          case "$COMPONENT" in
+            manager | web-client) ;;
+            *)
+              echo "component must be manager or web-client, not $COMPONENT" >&2
+              exit 1
+              ;;
+          esac
+
+          # The two repositories release independently, so each passes only its own tag. im-environment
+          # reads - as "keep whatever the environment file already names", which is what leaves the
+          # other repository's image where it was.
+          image_tags() {
+            if [ "$COMPONENT" = web-client ]; then
+              printf -- '- %s' "$1"
+            else
+              printf '%s' "$1"
+            fi
+          }
+
+          nothing_to_deploy() {
+            echo "$1"
+            echo "server=none" >> "$GITHUB_OUTPUT"
+          }
+
+          # Every target is identified positively, so an unrecognised build deploys nothing.
+          if [ "$EVENT" = pull_request ]; then
+            pull_request=$(printf '%s' "$PULL_REQUESTS" | jq -r '.[0].number // empty')
+            # workflow_run.pull_requests is empty when GitHub cannot associate the run with an open
+            # pull request, so the commit's own pull requests are the fallback.
+            pull_request=${pull_request:-$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[0].number // empty')}
+            if [ -z "$pull_request" ]; then
+              nothing_to_deploy "no pull request found for $HEAD_SHA, nothing to deploy"
+              exit 0
+            fi
+
+            # Opt in per pull request, on the same label the EKS deploy uses, so one label drives
+            # both and removing it tears both down. An environment costs a database, a Redis and a
+            # RabbitMQ on a box shared with dev, and the build runs on every pull request event, so
+            # without this every open pull request would claim one.
+            labelled=$(gh pr view "$pull_request" --repo "$REPOSITORY" --json labels \
+              --jq 'any(.labels[].name; . == "deploy")')
+            if [ "$labelled" != true ]; then
+              nothing_to_deploy "pull request $pull_request is not labelled deploy, nothing to deploy"
+              exit 0
+            fi
+
+            # The same sanitisation the build applies to the image tag: lowercase, non-alphanumerics
+            # to hyphens, 25 characters, no trailing hyphen. Both repositories derive it identically,
+            # which is what makes one branch mean one environment.
+            lowercase=$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]')
+            label=${lowercase//[^[:alnum:]]/-}
+            label=${label::25}
+            label=${label%-}
+
+            # The shape im-environment-ci enforces on the far end, checked here so a branch that
+            # sanitizes to something unusable says so rather than arriving as a denied forced
+            # command. That check stays the control; this one is the error message.
+            if [[ ! $label =~ ^[a-z0-9]([a-z0-9-]{0,23}[a-z0-9])?$ ]]; then
+              echo "$HEAD_BRANCH sanitizes to '$label', which is not a usable environment label" >&2
+              exit 1
+            fi
+
+            echo "server=dev" >> "$GITHUB_OUTPUT"
+            echo "environment=feat-$label" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$(image_tags "$label")" >> "$GITHUB_OUTPUT"
+          elif [ "$HEAD_BRANCH" = master ]; then
+            echo "server=dev" >> "$GITHUB_OUTPUT"
+            echo "environment=dev" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$(image_tags latest)" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = push ] && gh api "repos/$REPOSITORY/git/ref/tags/$HEAD_BRANCH" > /dev/null 2>&1; then
+            # head_branch is the tag name for a tag push, and the build pushes the image with any v
+            # prefix stripped.
+            echo "server=prod" >> "$GITHUB_OUTPUT"
+            echo "environment=prod" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$(image_tags "${HEAD_BRANCH#v}")" >> "$GITHUB_OUTPUT"
+          else
+            nothing_to_deploy "$HEAD_BRANCH is neither master nor a tag, nothing to deploy"
+          fi
+
+      - name: Deploy to the dev and feature server
+        if: steps.target.outputs.server == 'dev'
+        env:
+          DEPLOY_KEY: ${{ secrets.IM_VM_DEV_DEPLOY_KEY }}
+          HOST: ${{ secrets.IM_VM_DEV_HOST }}
+          ENVIRONMENT: ${{ steps.target.outputs.environment }}
+          IMAGE_TAGS: ${{ steps.target.outputs.image_tags }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          install --mode=600 /dev/null deploy-key
+          printf '%s\n' "$DEPLOY_KEY" > deploy-key
+          ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS"
+
+      - name: Deploy to the prod server
+        if: steps.target.outputs.server == 'prod'
+        env:
+          DEPLOY_KEY: ${{ secrets.IM_VM_PROD_DEPLOY_KEY }}
+          HOST: ${{ secrets.IM_VM_PROD_HOST }}
+          ENVIRONMENT: ${{ steps.target.outputs.environment }}
+          IMAGE_TAGS: ${{ steps.target.outputs.image_tags }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          install --mode=600 /dev/null deploy-key
+          printf '%s\n' "$DEPLOY_KEY" > deploy-key
+          ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS"
+
+      - name: Forget the key
+        if: always()
+        run: rm --force deploy-key
