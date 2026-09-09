@@ -47,7 +47,11 @@ on:
 jobs:
   build:
     env:
-      DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy')) }}
+      # Push only, so this cluster no longer deploys feature environments. They are served from the
+      # im-vm control plane, which owns *.im-feat, and an EKS copy would be an unreachable duplicate
+      # still holding a namespace, helm releases and its own database, Redis and RabbitMQ. Master
+      # still deploys dev here and a tag still deploys prod, because neither has cut over yet.
+      DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -365,9 +369,13 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      # Deliberately not gated on DEPLOY_ENVIRONMENT: this workflow no longer deploys the feature
+      # environment, im-vm does, but it is still the only place that knows the pull request. The
+      # hostnames come from .envrc, which is loaded either way, and they are the same names im-vm
+      # serves, so the comment stays correct now that it points at a different system.
       - name: Comment deployed environment URL
         uses: marocchino/sticky-pull-request-comment@v3
-        if: ${{ env.DEPLOY_ENVIRONMENT == 'true' && github.ref != 'refs/heads/master' && github.ref_type != 'tag' }}
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'deploy') }}
         env:
           APP_URL: ${{ contains(github.repository, 'im-web-client') && env.UI_URL || format('https://{0}', env.API_HOSTNAME) }}
         with:
