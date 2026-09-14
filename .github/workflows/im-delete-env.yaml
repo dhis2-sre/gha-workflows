@@ -86,19 +86,26 @@ jobs:
   # with a different credential, and it runs whether or not the one above did: a feature environment
   # left behind holds a database, a Redis and a RabbitMQ on a box shared with dev.
   delete-im-vm-env:
-    name: Delete the im-vm feature environment
+    name: Release the im-vm feature environment
     runs-on: ubuntu-24.04
-    # A closed pull request has no environment either way, but unlabeled fires for every label, and
-    # only this one created anything.
+    # Both arms are gated on the deploy label, because one branch means one environment and the other
+    # repository's pull request may still be using it. Closing a pull request that never carried the
+    # label created nothing here and must release nothing: on close the label is read from the pull
+    # request as it stood, and on unlabeled it has to be the label that was taken off.
     if: >-
       github.actor != 'dependabot[bot]' &&
-      (github.event.action == 'closed' || github.event.label.name == 'deploy')
+      (
+        (github.event.action == 'closed' &&
+          contains(github.event.pull_request.labels.*.name, 'deploy')) ||
+        (github.event.action == 'unlabeled' && github.event.label.name == 'deploy')
+      )
     steps:
-      - name: Destroy
+      - name: Release
         env:
           DEPLOY_KEY: ${{ secrets.IM_VM_DEV_DEPLOY_KEY }}
           HOST: ${{ secrets.IM_VM_DEV_HOST }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          CLAIMANT: ${{ github.repository }}
         run: |
           set -o errexit -o nounset -o pipefail
 
@@ -117,8 +124,11 @@ jobs:
 
           install --mode=600 /dev/null deploy-key
           printf '%s\n' "$DEPLOY_KEY" > deploy-key
+          # Drops this repository's claim rather than destroying outright. The environment goes only
+          # when the last claim does, so closing one pull request no longer takes down the one the
+          # other repository's pull request is still working against.
           ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            im@"$HOST" "down feat-$label"
+            im@"$HOST" "down feat-$label $CLAIMANT"
 
       - name: Forget the key
         if: always()
