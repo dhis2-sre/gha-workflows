@@ -72,15 +72,11 @@ jobs:
           # The two repositories release independently, so each passes only its own tag. im-environment
           # reads - as "keep whatever the environment file already names", which is what leaves the
           # other repository's image where it was.
-          #
-          # Both positions are always filled, including a trailing - the manager would not otherwise
-          # need, because the claimant follows them and the command is split on spaces: a gap here
-          # would be read as the web client's tag.
           image_tags() {
             if [ "$COMPONENT" = web-client ]; then
               printf -- '- %s' "$1"
             else
-              printf -- '%s -' "$1"
+              printf '%s' "$1"
             fi
           }
 
@@ -144,9 +140,6 @@ jobs:
             nothing_to_deploy "$HEAD_BRANCH is neither master nor a tag, nothing to deploy"
           fi
 
-      # The repository is passed as the claimant, so a feature environment survives until every
-      # repository whose pull request wants it has let go. im-environment ignores it for the long
-      # lived environments, which are the playbook's and are never claimed.
       - name: Deploy to the dev and feature server
         if: steps.target.outputs.server == 'dev'
         env:
@@ -154,13 +147,12 @@ jobs:
           HOST: ${{ secrets.IM_VM_DEV_HOST }}
           ENVIRONMENT: ${{ steps.target.outputs.environment }}
           IMAGE_TAGS: ${{ steps.target.outputs.image_tags }}
-          CLAIMANT: ${{ github.repository }}
         run: |
           set -o errexit -o nounset -o pipefail
           install --mode=600 /dev/null deploy-key
           printf '%s\n' "$DEPLOY_KEY" > deploy-key
           ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS $CLAIMANT"
+            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS"
 
       - name: Deploy to the prod server
         if: steps.target.outputs.server == 'prod'
@@ -169,13 +161,12 @@ jobs:
           HOST: ${{ secrets.IM_VM_PROD_HOST }}
           ENVIRONMENT: ${{ steps.target.outputs.environment }}
           IMAGE_TAGS: ${{ steps.target.outputs.image_tags }}
-          CLAIMANT: ${{ github.repository }}
         run: |
           set -o errexit -o nounset -o pipefail
           install --mode=600 /dev/null deploy-key
           printf '%s\n' "$DEPLOY_KEY" > deploy-key
           ssh -i deploy-key -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
-            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS $CLAIMANT"
+            im@"$HOST" "up $ENVIRONMENT $IMAGE_TAGS"
 
       - name: Forget the key
         if: always()
