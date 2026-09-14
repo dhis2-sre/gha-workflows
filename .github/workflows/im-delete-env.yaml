@@ -38,6 +38,11 @@ jobs:
           # the rest of the chars up to the limit are saved for the static part of the release names
           SANITIZED_HEAD_BRANCH=${HEAD_BRANCH_LOWERCASE_NO_NONALPHANUMERIC::25}
 
+          # trim last "-" if there is one, exactly as the deploy does. Without this a branch whose
+          # truncation lands on a hyphen is deployed as "foo" and deleted as "foo-", so the teardown
+          # matches nothing and the environment is left running.
+          SANITIZED_HEAD_BRANCH=${SANITIZED_HEAD_BRANCH%-}
+
           echo "ENVIRONMENT=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
 
