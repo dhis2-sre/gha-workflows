@@ -89,9 +89,10 @@ jobs:
             im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum') }}-
             im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-
 
-      - name: Cache setup tools
+      - name: Restore setup tools
+        id: setup_cache
         if: inputs.CACHE_NAMESPACE != ''
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/pre-commit
@@ -101,6 +102,17 @@ jobs:
 
       - name: Install prerequisites
         run: make init
+
+      # Save successful setup even if a later application check fails.
+      - name: Save setup tools
+        if: inputs.CACHE_NAMESPACE != '' && steps.setup_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/pip
+            ~/go/bin
+          key: ${{ steps.setup_cache.outputs.cache-primary-key }}
 
       - name: Run pre-commit checks
         run: make check
