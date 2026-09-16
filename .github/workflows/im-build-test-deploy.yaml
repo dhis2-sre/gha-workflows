@@ -16,6 +16,11 @@ on:
         description: Container process name, eg. dhis2-instance-manager-api. Used to assert that the process is running under pid 1
         required: true
         type: string
+      CACHE_NAMESPACE:
+        description: Opt-in cache namespace for Go compilation and setup tools; gates remain sequential
+        required: false
+        type: string
+        default: ""
       HEALTH_CHECK_ENDPOINT:
         description: Health check endpoint
         required: false
@@ -53,16 +58,61 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
+        id: python
         with:
           python-version: '3.x'
 
       - uses: actions/setup-go@v6.5.0
+        id: go
         with:
           go-version: 1.26.3
-          cache: true
+          cache: ${{ inputs.CACHE_NAMESPACE == '' }}
+
+      # Separate keys let each cache evolve independently. Go validates restored
+      # compilation entries against the current source and compiler flags.
+      - name: Cache Go modules
+        if: inputs.CACHE_NAMESPACE != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: im-mod-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum', 'Makefile', 'scripts/install-test-tools.sh') }}
+          restore-keys: |
+            im-mod-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-
+
+      - name: Cache Go compilation
+        if: inputs.CACHE_NAMESPACE != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum') }}-${{ hashFiles('**/*.go', 'go.mod') }}
+          restore-keys: |
+            im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum') }}-
+            im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-
+
+      - name: Restore setup tools
+        id: setup_cache
+        if: inputs.CACHE_NAMESPACE != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/pip
+            ~/go/bin
+          key: im-tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.python.outputs.python-version }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('.pre-commit-config.yaml', 'Makefile', 'scripts/install-test-tools.sh') }}
 
       - name: Install prerequisites
         run: make init
+
+      # Save successful setup even if a later application check fails.
+      - name: Save setup tools
+        if: inputs.CACHE_NAMESPACE != '' && steps.setup_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/pip
+            ~/go/bin
+          key: ${{ steps.setup_cache.outputs.cache-primary-key }}
 
       - name: Run pre-commit checks
         run: make check
