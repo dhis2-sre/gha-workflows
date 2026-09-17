@@ -72,7 +72,7 @@ jobs:
       # compilation entries against the current source and compiler flags.
       - name: Cache Go modules
         if: inputs.CACHE_NAMESPACE != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/go/pkg/mod
           key: im-mod-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum', 'Makefile', 'scripts/install-test-tools.sh') }}
@@ -81,7 +81,7 @@ jobs:
 
       - name: Cache Go compilation
         if: inputs.CACHE_NAMESPACE != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/go-build
           key: im-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.CACHE_NAMESPACE }}-${{ hashFiles('go.sum') }}-${{ hashFiles('**/*.go', 'go.mod') }}
@@ -92,7 +92,7 @@ jobs:
       - name: Restore setup tools
         id: setup_cache
         if: inputs.CACHE_NAMESPACE != ''
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cache/pre-commit
@@ -106,7 +106,7 @@ jobs:
       # Save successful setup even if a later application check fails.
       - name: Save setup tools
         if: inputs.CACHE_NAMESPACE != '' && steps.setup_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cache/pre-commit
