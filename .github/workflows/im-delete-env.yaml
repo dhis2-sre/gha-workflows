@@ -38,6 +38,11 @@ jobs:
           # the rest of the chars up to the limit are saved for the static part of the release names
           SANITIZED_HEAD_BRANCH=${HEAD_BRANCH_LOWERCASE_NO_NONALPHANUMERIC::25}
 
+          # trim last "-" if there is one, exactly as the deploy does. Without this a branch whose
+          # truncation lands on a hyphen is deployed as "foo" and deleted as "foo-", so the teardown
+          # matches nothing and the environment is left running.
+          SANITIZED_HEAD_BRANCH=${SANITIZED_HEAD_BRANCH%-}
+
           echo "ENVIRONMENT=$SANITIZED_HEAD_BRANCH" >> $GITHUB_ENV
           echo "CLASSIFICATION=feature" >> $GITHUB_ENV
 
@@ -83,17 +88,25 @@ jobs:
   delete-im-vm-env:
     name: Delete the im-vm feature environment
     runs-on: ubuntu-24.04
-    # A closed pull request has no environment either way, but unlabeled fires for every label, and
-    # only this one created anything.
+    # Both arms are gated on the deploy label, because one branch means one environment and the other
+    # repository's pull request may still be using it. Closing a pull request that never carried the
+    # label created nothing here and must tear down nothing: on close the label is read from the pull
+    # request as it stood, and on unlabeled it has to be the label that was taken off.
     if: >-
       github.actor != 'dependabot[bot]' &&
-      (github.event.action == 'closed' || github.event.label.name == 'deploy')
+      (
+        (github.event.action == 'closed' &&
+          contains(github.event.pull_request.labels.*.name, 'deploy')) ||
+        (github.event.action == 'unlabeled' && github.event.label.name == 'deploy')
+      )
     steps:
       - name: Destroy
         env:
           DEPLOY_KEY: ${{ secrets.IM_VM_DEV_DEPLOY_KEY }}
           HOST: ${{ secrets.IM_VM_DEV_HOST }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -o errexit -o nounset -o pipefail
 
@@ -109,6 +122,25 @@ jobs:
           label=${lowercase//[^[:alnum:]]/-}
           label=${label::25}
           label=${label%-}
+
+          # One branch means one environment, so the pull request in the other repository on this
+          # branch is using the very same one. Tearing it down here would take theirs with it, and on
+          # im-vm that is one stack with one database rather than the two independent helm releases
+          # EKS had. Both repositories are public, so github.token is enough to read this.
+          case "$REPOSITORY" in
+            */im-manager)    paired=dhis2-sre/im-web-client ;;
+            */im-web-client) paired=dhis2-sre/im-manager ;;
+            *)               paired= ;;
+          esac
+
+          if [ -n "$paired" ]; then
+            wanted=$(gh api "repos/$paired/pulls?state=open&head=dhis2-sre:$HEAD_BRANCH" \
+              --jq '[.[] | select(any(.labels[].name; . == "deploy"))] | length')
+            if [ "$wanted" -gt 0 ]; then
+              echo "$paired still has a deploy labelled pull request on $HEAD_BRANCH, keeping feat-$label"
+              exit 0
+            fi
+          fi
 
           install --mode=600 /dev/null deploy-key
           printf '%s\n' "$DEPLOY_KEY" > deploy-key
