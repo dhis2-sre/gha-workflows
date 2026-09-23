@@ -52,11 +52,12 @@ on:
 jobs:
   build:
     env:
-      # Push only, so this cluster no longer deploys feature environments. They are served from the
-      # im-vm control plane, which owns *.im-feat, and an EKS copy would be an unreachable duplicate
-      # still holding a namespace, helm releases and its own database, Redis and RabbitMQ. Master
-      # still deploys dev here and a tag still deploys prod, because neither has cut over yet.
-      DEPLOY_ENVIRONMENT: ${{ github.event_name == 'push' }}
+      # Tags only, so this cluster deploys prod and nothing else. Dev and the feature environments
+      # are served from the im-vm control plane, which owns their hostnames, and an EKS copy would be
+      # an unreachable duplicate. Worse than idle: its cert-manager keeps trying to renew certificates
+      # for names that now resolve to the VM, and fails every time. Master still builds and pushes
+      # the image, which is what the im-vm deploy pulls.
+      DEPLOY_ENVIRONMENT: ${{ github.ref_type == 'tag' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
