@@ -60,7 +60,7 @@ jobs:
       DEPLOY_ENVIRONMENT: ${{ github.ref_type == 'tag' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v6
         id: python
