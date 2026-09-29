@@ -89,8 +89,11 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             pull_request=$(printf '%s' "$PULL_REQUESTS" | jq -r '.[0].number // empty')
             # workflow_run.pull_requests is empty when GitHub cannot associate the run with an open
-            # pull request, so the commit's own pull requests are the fallback.
-            pull_request=${pull_request:-$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[0].number // empty')}
+            # pull request, so the commit's own pull requests are the fallback. Only the one built
+            # from this branch counts: once merged, the commit also belongs to every pull request it
+            # was merged into, and one of those carrying the label would deploy this branch.
+            pull_request=${pull_request:-$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" \
+              --jq '[.[] | select(.head.ref == env.HEAD_BRANCH)][0].number // empty')}
             if [ -z "$pull_request" ]; then
               nothing_to_deploy "no pull request found for $HEAD_SHA, nothing to deploy"
               exit 0
@@ -99,11 +102,13 @@ jobs:
             # Opt in per pull request, on the same label the EKS deploy uses, so one label drives
             # both and removing it tears both down. An environment costs a database, a Redis and a
             # RabbitMQ on a box shared with dev, and the build runs on every pull request event, so
-            # without this every open pull request would claim one.
-            labelled=$(gh pr view "$pull_request" --repo "$REPOSITORY" --json labels \
-              --jq 'any(.labels[].name; . == "deploy")')
-            if [ "$labelled" != true ]; then
-              nothing_to_deploy "pull request $pull_request is not labelled deploy, nothing to deploy"
+            # without this every open pull request would claim one. It must still be open: a build
+            # that finishes after its pull request closed would recreate the environment the close
+            # has just torn down, and nothing would tear it down again.
+            wanted=$(gh pr view "$pull_request" --repo "$REPOSITORY" --json labels,state \
+              --jq '.state == "OPEN" and any(.labels[].name; . == "deploy")')
+            if [ "$wanted" != true ]; then
+              nothing_to_deploy "pull request $pull_request is not open and labelled deploy, nothing to deploy"
               exit 0
             fi
 
