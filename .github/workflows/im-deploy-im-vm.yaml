@@ -37,7 +37,7 @@ on:
         description: Its deploy key, reachable by anything a pull request can trigger
       IM_VM_PROD_HOST:
         required: false
-        description: The prod server, needed only once releases deploy here
+        description: The prod server, which releases deploy to
       IM_VM_PROD_DEPLOY_KEY:
         required: false
         description: Its deploy key, which nothing a pull request can trigger may reach
