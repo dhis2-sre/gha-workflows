@@ -56,12 +56,9 @@ on:
 jobs:
   build:
     env:
-      # Tags only, so this cluster deploys prod and nothing else. Dev and the feature environments
-      # are served from the im-vm control plane, which owns their hostnames, and an EKS copy would be
-      # an unreachable duplicate. Worse than idle: its cert-manager keeps trying to renew certificates
-      # for names that now resolve to the VM, and fails every time. Master still builds and pushes
-      # the image, which is what the im-vm deploy pulls.
-      DEPLOY_ENVIRONMENT: ${{ github.ref_type == 'tag' }}
+      # EKS deploys nothing: every environment, prod included, is served from the im-vm control plane.
+      # The build still pushes the image, which is what the im-vm deploy pulls.
+      DEPLOY_ENVIRONMENT: false
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
